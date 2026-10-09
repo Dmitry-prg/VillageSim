@@ -1,0 +1,2246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Деревня 3D — симулятор</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;user-select:none}
+  canvas{display:block}
+
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+  .panel{
+    background:rgba(14,20,27,.85);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:14px;color:#e8f1f8;
+    box-shadow:0 8px 28px rgba(0,0,0,.35)
+  }
+
+  #resbar{
+    position:absolute;top:14px;left:14px;
+    display:flex;gap:6px;padding:9px 12px;flex-wrap:wrap;max-width:42vw
+  }
+  .res{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;
+    padding:3px 9px;border-radius:9px;background:rgba(255,255,255,.06)}
+  .res .ico{font-size:15px}
+
+  #listbtns{
+    position:absolute;top:64px;left:14px;
+    display:flex;gap:8px;pointer-events:auto
+  }
+  .listbtn{
+    padding:9px 14px;border-radius:11px;cursor:pointer;font-family:inherit;
+    font-size:13px;font-weight:700;color:#e8f1f8;
+    background:rgba(14,22,30,.88);border:1.5px solid rgba(255,255,255,.14);
+    transition:transform .13s,border-color .13s;
+    display:flex;align-items:center;gap:7px
+  }
+  .listbtn:hover{transform:translateY(-2px);border-color:rgba(120,225,165,.7)}
+  .listbtn .cnt{background:rgba(255,255,255,.12);padding:1px 7px;border-radius:6px;font-size:11px}
+
+  #stats{
+    position:absolute;top:14px;right:14px;padding:12px 14px;width:206px;font-size:13px
+  }
+  .stitle{font-weight:700;margin-bottom:9px;font-size:13px;color:#9fd8b4;
+    letter-spacing:.4px;text-transform:uppercase}
+  .srow{display:flex;justify-content:space-between;padding:3px 0;color:#b9cad9}
+  .srow b{color:#fff;font-weight:600}
+  .pos{color:#5ee08a !important}
+  .neg{color:#ff7a7a !important}
+
+  #topbtns{
+    position:fixed;bottom:14px;right:14px;
+    display:flex;gap:8px;pointer-events:auto;z-index:25
+  }
+  .tbtn{
+    padding:11px 20px;border-radius:12px;cursor:pointer;font-family:inherit;
+    font-size:14px;font-weight:700;color:#e8f1f8;
+    background:rgba(14,22,30,.9);border:1.5px solid rgba(255,255,255,.14);
+    transition:transform .13s,border-color .13s,background .13s,box-shadow .13s;
+    display:flex;align-items:center;gap:7px
+  }
+  .tbtn:hover{transform:translateY(-2px);border-color:rgba(120,225,165,.75)}
+  .tbtn.primary{background:linear-gradient(135deg,#2f9e5c,#3fb56c);
+    border-color:rgba(120,255,180,.55);color:#fff}
+  .tbtn.primary:hover{box-shadow:0 0 22px rgba(74,222,128,.5)}
+  .tbtn.active{border-color:#4ade80;box-shadow:0 0 20px rgba(74,222,128,.4)}
+
+  #plus-menu{
+    position:fixed;bottom:70px;right:14px;
+    width:min(600px,92vw);max-height:68vh;overflow-y:auto;
+    background:rgba(14,20,27,.96);backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.13);border-radius:16px;
+    box-shadow:0 18px 48px rgba(0,0,0,.55);
+    padding:14px;pointer-events:auto;z-index:30;
+    opacity:0;visibility:hidden;transform:translateY(8px);
+    transition:opacity .18s,visibility .18s,transform .18s
+  }
+  #plus-menu.open{opacity:1;visibility:visible;transform:translateY(0)}
+  #plus-menu::-webkit-scrollbar{width:6px}
+  #plus-menu::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
+
+  .pm-section{margin-bottom:14px}
+  .pm-section:last-child{margin-bottom:0}
+  .pm-head{
+    font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+    color:#9fd8b4;margin-bottom:8px;padding-left:4px
+  }
+  .pm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:7px}
+  .pm-item{
+    display:flex;flex-direction:column;gap:3px;text-align:left;cursor:pointer;
+    padding:10px 11px;border-radius:11px;font-family:inherit;color:#dfeaf2;
+    background:rgba(255,255,255,.045);border:1.5px solid rgba(255,255,255,.08);
+    transition:transform .12s,border-color .12s,background .12s
+  }
+  .pm-item:hover{transform:translateY(-2px);border-color:rgba(120,225,165,.7);
+    background:rgba(74,222,128,.09)}
+  .pm-item .pm-name{font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px}
+  .pm-item .pm-cost{font-size:11px;color:#93a8bb}
+  .pm-item .pm-info{font-size:10.5px;color:#6f8498;line-height:1.3}
+
+  #context-menu{
+    position:fixed;min-width:230px;padding:6px;
+    background:rgba(14,20,27,.97);backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.15);border-radius:12px;
+    box-shadow:0 14px 40px rgba(0,0,0,.6);
+    pointer-events:auto;z-index:80;display:none
+  }
+  #context-menu.open{display:block}
+  .ctx-title{
+    font-size:11.5px;color:#9fd8b4;font-weight:800;letter-spacing:.4px;
+    text-transform:uppercase;padding:8px 12px 6px;border-bottom:1px solid rgba(255,255,255,.08);
+    margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;gap:10px
+  }
+  .ctx-title .lvl{color:#ffd66b;font-size:11px}
+  .ctx-btn{
+    display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;
+    border-radius:8px;background:transparent;border:none;cursor:pointer;
+    color:#dfeaf2;font-family:inherit;font-size:13px;font-weight:600;
+    text-align:left;transition:background .12s
+  }
+  .ctx-btn:hover{background:rgba(255,255,255,.08)}
+  .ctx-btn.danger{color:#ff9a9a}
+  .ctx-btn.danger:hover{background:rgba(255,80,80,.14)}
+  .ctx-btn:disabled{opacity:.4;cursor:not-allowed}
+  .ctx-btn:disabled:hover{background:transparent}
+  .ctx-btn .sub{color:#7d92a5;font-weight:400;font-size:11px;margin-left:auto}
+
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;z-index:60;
+    animation:fadeIn .15s ease
+  }
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .modal{
+    width:min(440px,92vw);background:rgba(20,28,37,.98);
+    border:1px solid rgba(255,255,255,.15);border-radius:18px;
+    box-shadow:0 24px 64px rgba(0,0,0,.7);padding:22px 24px;
+    color:#e8f1f8;animation:popIn .2s ease;
+    max-height:80vh;display:flex;flex-direction:column
+  }
+  @keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+  .modal h3{font-size:17px;margin-bottom:12px;color:#fff;font-weight:700}
+  .modal-body{font-size:14px;line-height:1.6;color:#b9cad9;margin-bottom:20px;overflow-y:auto}
+  .modal-body .cost{color:#ffd66b;font-weight:700}
+  .modal-body .desc{color:#8fa5b8;font-size:13px;display:block;margin-top:6px}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:auto}
+  .mbtn{
+    padding:10px 20px;border-radius:10px;font-family:inherit;font-size:14px;
+    font-weight:700;cursor:pointer;border:1.5px solid transparent;
+    transition:transform .12s,filter .12s
+  }
+  .mbtn:hover{transform:translateY(-1px)}
+  .mbtn.cancel{background:rgba(255,255,255,.07);color:#c0cfdd;
+    border-color:rgba(255,255,255,.13)}
+  .mbtn.confirm{background:linear-gradient(135deg,#2f9e5c,#3fb56c);color:#fff;
+    border-color:rgba(120,255,180,.5)}
+  .mbtn.danger{background:linear-gradient(135deg,#c43b3b,#e05050);color:#fff;
+    border-color:rgba(255,140,140,.5)}
+
+  .name-input{
+    width:100%;padding:12px 14px;border-radius:10px;font-family:inherit;
+    font-size:15px;background:rgba(255,255,255,.06);color:#fff;
+    border:1.5px solid rgba(255,255,255,.14);outline:none;
+    transition:border-color .15s
+  }
+  .name-input:focus{border-color:#4ade80}
+  .name-error{color:#ff9090;font-size:12.5px;margin-top:6px;min-height:16px}
+
+  .picker-list{
+    display:flex;flex-direction:column;gap:6px;max-height:52vh;
+    overflow-y:auto;margin-bottom:16px
+  }
+  .picker-list::-webkit-scrollbar{width:6px}
+  .picker-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
+  .picker-item{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 14px;background:rgba(255,255,255,.05);
+    border:1.5px solid rgba(255,255,255,.1);border-radius:10px;
+    color:#dfeaf2;font-family:inherit;font-size:14px;font-weight:600;
+    cursor:pointer;transition:background .12s,border-color .12s;text-align:left
+  }
+  .picker-item:hover:not(:disabled){
+    background:rgba(74,222,128,.1);border-color:rgba(120,225,165,.6)
+  }
+  .picker-item:disabled{opacity:.4;cursor:not-allowed}
+  .picker-item .sub{color:#7d92a5;font-size:12px;font-weight:400}
+  .picker-item .hunger-bar{
+    width:56px;height:6px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden
+  }
+  .picker-item .hunger-bar span{
+    display:block;height:100%;background:#5ee08a;border-radius:3px
+  }
+
+  #toasts{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
+    display:flex;flex-direction:column;gap:7px;align-items:center;pointer-events:none}
+  .toast{
+    padding:9px 18px;border-radius:11px;font-size:13.5px;font-weight:600;
+    background:rgba(14,22,30,.94);border:1px solid rgba(255,255,255,.13);
+    color:#e8f1f8;animation:pop .25s ease;white-space:nowrap;
+    box-shadow:0 6px 22px rgba(0,0,0,.4)
+  }
+  .toast.err{border-color:rgba(255,110,110,.6);color:#ffb0b0}
+  .toast.ok{border-color:rgba(90,225,140,.55);color:#a8f0c4}
+  .toast.warn{border-color:rgba(255,200,80,.7);color:#ffe090}
+  .toast.out{opacity:0;transform:translateY(-10px);transition:.35s}
+  @keyframes pop{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:none}}
+
+  .help-content{font-size:13.5px;line-height:1.9;color:#b9cad9}
+  .help-content b{color:#e8f1f8}
+  .help-content kbd{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+    border-radius:5px;padding:1px 7px;font-family:inherit;font-size:12px;color:#e2eef8}
+  .help-content .row{display:flex;gap:10px;align-items:baseline;padding:2px 0}
+  .help-content .row span:first-child{min-width:160px;color:#8fa5b8}
+
+  @media(max-width:820px){
+    #stats{display:none}
+    #resbar{max-width:60vw}
+    .tbtn{padding:8px 12px;font-size:12.5px}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hud">
+  <div class="panel" id="resbar">
+    <div class="res"><span class="ico">💰</span><span id="r-money">0</span></div>
+    <div class="res"><span class="ico">🌾</span><span id="r-food">0/0</span></div>
+    <div class="res"><span class="ico">🪵</span><span id="r-wood">0/0</span></div>
+    <div class="res"><span class="ico">👥</span><span id="r-pop">0/0</span></div>
+    <div class="res"><span class="ico">👷</span><span id="r-jobs">0/0</span></div>
+  </div>
+
+  <div id="listbtns">
+    <button class="listbtn" id="list-villagers">👥 Жители <span class="cnt" id="cnt-villagers">0</span></button>
+    <button class="listbtn" id="list-buildings">🏠 Здания <span class="cnt" id="cnt-buildings">0</span></button>
+  </div>
+
+  <div class="panel" id="stats">
+    <div class="stitle">📊 Экономика</div>
+    <div class="srow"><span>Еда</span><b id="s-food">+0.0/с</b></div>
+    <div class="srow"><span>Дерево</span><b id="s-wood">+0.0/с</b></div>
+    <div class="srow"><span>Доход</span><b id="s-income">+0.0/с</b></div>
+    <div class="srow"><span>Зданий</span><b id="s-count">0</b></div>
+    <div class="srow"><span>Жителей</span><b id="s-villagers">0</b></div>
+  </div>
+
+  <div id="topbtns">
+    <button class="tbtn" id="help-btn">📖 Инструкция</button>
+    <button class="tbtn primary" id="plus-btn">➕ Добавить</button>
+  </div>
+
+  <div id="plus-menu"></div>
+  <div id="context-menu"></div>
+  <div id="toasts"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* =========================================================
+   1. ОПРЕДЕЛЕНИЯ
+   ========================================================= */
+const BUILDINGS = {
+  house:     { name: 'Жилой дом',  icon: '🏠', cost: { money: 200, wood: 10 }, info: 'Даёт 4 жителя',          capacity: 4, jobs: 0, radius: 2.8 },
+  coop:      { name: 'Курятник',   icon: '🐔', cost: { money: 100 },           info: '+0.6 еды/с · 1 раб.',    jobs: 1, food: 0.6, radius: 2.3 },
+  farm:      { name: 'Ферма',      icon: '🌾', cost: { money: 280, wood: 15 }, info: '+1.8 еды/с · 2 раб.',    jobs: 2, food: 1.8, radius: 4.4 },
+  sawmill:   { name: 'Лесопилка',  icon: '🪚', cost: { money: 240 },           info: '+0.4 дер./с · 2 раб.',   jobs: 2, wood: 0.4, radius: 2.9 },
+  market:    { name: 'Рынок',      icon: '🏪', cost: { money: 400, wood: 20 }, info: 'Продаёт излишки · 1 раб.', jobs: 1, radius: 2.5 },
+  warehouse: { name: 'Склад',      icon: '📦', cost: { money: 200, wood: 10 }, info: '+200 к лимиту',          jobs: 0, radius: 3.1 },
+  fence:     { name: 'Забор',      icon: '🚧', cost: { money: 10, wood: 2 },   info: 'Секция забора · стыкуется', jobs: 0, radius: 1.2, isFence: true }
+};
+
+const BUILDING_TYPES = ['house', 'coop', 'farm', 'sawmill', 'market', 'warehouse'];
+const ENVIRONMENT_TYPES = ['fence'];
+
+const VILLAGERS = {
+  man:   { name: 'Мужчина', icon: '👨', cost: { money: 60 }, info: 'Работящий житель' },
+  woman: { name: 'Женщина', icon: '👩', cost: { money: 60 }, info: 'Жительница деревни' }
+};
+
+const SHOP_ITEMS = {
+  food: { name: 'Еда',    icon: '🍞', cost: { money: 50 },  info: 'Купить 100 еды',
+          apply: () => { state.food = Math.min(state.capFood, state.food + 100); } },
+  wood: { name: 'Дерево', icon: '🪵', cost: { money: 80 },  info: 'Купить 50 дерева',
+          apply: () => { state.wood = Math.min(state.capWood, state.wood + 50); } }
+};
+
+const ANIMAL_TYPES = {
+  fox:  { name: 'Лиса',    icon: '🦊', speed: 2.4, target: 'coop',  needsCoop: true,  weight: 5 },
+  wolf: { name: 'Волк',    icon: '🐺', speed: 2.0, target: 'coop',  needsCoop: true,  weight: 3 },
+  bear: { name: 'Медведь', icon: '🐻', speed: 1.4, target: 'house', needsCoop: false, weight: 1 }
+};
+
+/* =========================================================
+   2. СОСТОЯНИЕ
+   ========================================================= */
+const state = {
+  money: 800, food: 200, wood: 50,
+  capFood: 200, capWood: 100,
+  buildings: [], villagers: [], animals: [],
+  income: 0, foodRate: 0, woodRate: 0,
+  jobsTotal: 0, jobsFilled: 0, housing: 4,
+  nextAnimalSpawn: 15,
+  buildingCounter: 0,
+  villagerCounter: 0
+};
+
+/* =========================================================
+   3. СЦЕНА
+   ========================================================= */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const SKY = 0x9ecfee;
+scene.background = new THREE.Color(SKY);
+scene.fog = new THREE.Fog(SKY, 75, 190);
+
+const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 600);
+camera.position.set(32, 26, 36);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.075;
+controls.maxPolarAngle = Math.PI / 2.18;
+controls.minDistance = 8;
+controls.maxDistance = 110;
+// ЛКМ — вращение, ПКМ — перемещение
+controls.mouseButtons = {
+  LEFT: THREE.MOUSE.ROTATE,
+  MIDDLE: THREE.MOUSE.DOLLY,
+  RIGHT: THREE.MOUSE.PAN
+};
+
+scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x4f7a3a, 1.15));
+
+const sun = new THREE.DirectionalLight(0xfff2d5, 2.3);
+sun.position.set(48, 70, 28);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -75; sun.shadow.camera.right = 75;
+sun.shadow.camera.top = 75; sun.shadow.camera.bottom = -75;
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 220;
+sun.shadow.bias = -0.0006;
+sun.shadow.normalBias = 0.03;
+scene.add(sun);
+
+function makeGridTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#6fa64c'; ctx.fillRect(0, 0, 128, 128);
+  ctx.strokeStyle = 'rgba(255,255,255,0.13)'; ctx.lineWidth = 3;
+  ctx.strokeRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(30, 30); t.anisotropy = 4;
+  return t;
+}
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(300, 300),
+  new THREE.MeshStandardMaterial({ map: makeGridTexture(), roughness: 1 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const BOUND = 46;
+{
+  const pts = [
+    new THREE.Vector3(-BOUND, 0.05, -BOUND), new THREE.Vector3( BOUND, 0.05, -BOUND),
+    new THREE.Vector3( BOUND, 0.05,  BOUND), new THREE.Vector3(-BOUND, 0.05,  BOUND),
+    new THREE.Vector3(-BOUND, 0.05, -BOUND)
+  ];
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 1.6, gapSize: 1.1, opacity: 0.35, transparent: true })
+  );
+  line.computeLineDistances();
+  scene.add(line);
+}
+
+/* =========================================================
+   4. ХЕЛПЕРЫ
+   ========================================================= */
+const matCache = {};
+function M(color) {
+  if (!matCache[color]) matCache[color] = new THREE.MeshStandardMaterial({ color, roughness: 0.88, metalness: 0 });
+  return matCache[color];
+}
+function box(p, w, h, d, color, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(color));
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; p.add(m); return m;
+}
+function cyl(p, rt, rb, h, seg, color, x, y, z) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), M(color));
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; p.add(m); return m;
+}
+function cone(p, r, h, seg, color, x, y, z) {
+  const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), M(color));
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; p.add(m); return m;
+}
+function ball(p, r, color, x, y, z) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), M(color));
+  m.position.set(x, y, z); m.castShadow = true; p.add(m); return m;
+}
+
+/* =========================================================
+   5. МОДЕЛИ ЗДАНИЙ
+   ========================================================= */
+function makeHouse() {
+  const g = new THREE.Group();
+  box(g, 4.4, 3.0, 4.0, 0xf2e3c8, 0, 1.5, 0);
+  cone(g, 3.7, 2.2, 4, 0xb0442f, 0, 4.1, 0);
+  box(g, 1.0, 1.9, 0.16, 0x7a4a25, 0, 0.95, 2.03);
+  box(g, 0.85, 0.85, 0.14, 0x9fd8ff, -1.4, 1.85, 2.03);
+  box(g, 0.85, 0.85, 0.14, 0x9fd8ff, 1.4, 1.85, 2.03);
+  box(g, 0.5, 1.3, 0.5, 0x8d5b4c, 1.2, 4.3, -0.9);
+  return g;
+}
+function makeCoop() {
+  const g = new THREE.Group();
+  box(g, 3.4, 1.7, 2.6, 0xc08a4e, 0, 0.85, 0);
+  cone(g, 2.5, 1.2, 4, 0x6b4a2f, 0, 2.3, 0);
+  box(g, 0.6, 0.6, 0.12, 0x33241a, 0, 0.6, 1.33);
+  const ramp = box(g, 0.9, 0.07, 1.7, 0x9a6b3a, 0, 0.3, 2.05);
+  ramp.rotation.x = -0.35;
+  [[-1.6, 0.25, 2.0], [1.7, 0.25, 1.6], [0.9, 0.25, 2.6]].forEach(([x, y, z]) => {
+    ball(g, 0.22, 0xf5f5f0, x, y, z);
+    const head = ball(g, 0.14, 0xf5f5f0, x + 0.15, y + 0.2, z);
+    head.scale.set(1, 1.1, 1);
+    cone(g, 0.07, 0.18, 6, 0xffb300, x + 0.26, y + 0.2, z).rotation.z = -Math.PI / 2;
+  });
+  return g;
+}
+function makeFarm() {
+  const g = new THREE.Group();
+  box(g, 8.6, 0.22, 6.6, 0x7a5636, 0, 0.11, 0);
+  for (let r = 0; r < 4; r++) box(g, 7.4, 0.55, 0.7, 0xcbb43f, 0, 0.4, -2.1 + r * 1.4);
+  box(g, 2.6, 1.8, 2.2, 0xa9713f, 3.6, 0.9, 2.5);
+  cone(g, 1.95, 1.0, 4, 0x7a4a2a, 3.6, 2.3, 2.5);
+  box(g, 0.9, 1.2, 0.12, 0x5c3a20, 3.6, 0.6, 3.62);
+  return g;
+}
+function makeSawmill() {
+  const g = new THREE.Group();
+  box(g, 4.6, 0.28, 4.0, 0x8b6b4a, 0, 0.14, 0);
+  box(g, 4.6, 0.22, 3.8, 0x6b4a2f, 0, 2.5, 0);
+  [-1.9, 1.9].forEach(x => [-1.6, 1.6].forEach(z => cyl(g, 0.11, 0.11, 2.4, 6, 0x9a7a55, x, 1.2, z)));
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 2 - i; j++) {
+    const log = cyl(g, 0.3, 0.3, 3.0, 8, 0x7d5a38, -1.0 + j * 0.65, 0.55 + i * 0.58, -2.9);
+    log.rotation.z = Math.PI / 2;
+  }
+  const blade = cyl(g, 0.9, 0.9, 0.09, 16, 0xb9c2c9, 1.2, 1.1, 0.6);
+  blade.rotation.z = Math.PI / 2;
+  return g;
+}
+function makeMarket() {
+  const g = new THREE.Group();
+  box(g, 3.2, 1.0, 1.6, 0xa87848, 0, 0.5, 0);
+  box(g, 3.2, 0.1, 1.7, 0x8b6239, 0, 1.02, 0);
+  [-1.45, 1.45].forEach(x => [-0.7, 0.7].forEach(z => cyl(g, 0.09, 0.09, 2.7, 6, 0x8a6a45, x, 1.35, z)));
+  for (let i = 0; i < 8; i++) {
+    const c = i % 2 === 0 ? 0xd94b4b : 0xf5f5f0;
+    const w = 3.8 / 8;
+    box(g, w, 0.12, 3.0, c, -1.9 + w / 2 + i * w, 2.75, 0);
+  }
+  box(g, 0.7, 0.7, 0.7, 0xb08050, -2.0, 0.35, 1.4);
+  box(g, 0.6, 0.6, 0.6, 0x9a6b3a, 2.1, 0.3, 1.3);
+  ball(g, 0.16, 0xe8542f, -2.0, 0.78, 1.4);
+  ball(g, 0.16, 0xf0c419, 2.1, 0.68, 1.3);
+  return g;
+}
+function makeWarehouse() {
+  const g = new THREE.Group();
+  box(g, 5.0, 3.0, 4.0, 0xd8c9a3, 0, 1.5, 0);
+  const r1 = box(g, 3.3, 0.24, 4.4, 0x8a4a3a, -1.25, 3.75, 0); r1.rotation.z = 0.48;
+  const r2 = box(g, 3.3, 0.24, 4.4, 0x8a4a3a, 1.25, 3.75, 0); r2.rotation.z = -0.48;
+  box(g, 2.3, 2.3, 0.16, 0x8b6b4a, 0, 1.15, 2.05);
+  box(g, 0.14, 2.3, 0.1, 0x6b4a2f, 0, 1.15, 2.13);
+  return g;
+}
+function makeFence() {
+  const g = new THREE.Group();
+  const len = 2.4, h = 0.9;
+  cyl(g, 0.06, 0.06, h, 6, 0x8a6a45, -len/2 + 0.1, h/2, 0);
+  cyl(g, 0.06, 0.06, h, 6, 0x8a6a45, len/2 - 0.1, h/2, 0);
+  box(g, len - 0.2, 0.08, 0.04, 0x9a7a55, 0, h * 0.75, 0);
+  box(g, len - 0.2, 0.08, 0.04, 0x9a7a55, 0, h * 0.4, 0);
+  return g;
+}
+
+const MESH_BUILDERS = {
+  house: makeHouse, coop: makeCoop, farm: makeFarm,
+  sawmill: makeSawmill, market: makeMarket, warehouse: makeWarehouse,
+  fence: makeFence
+};
+function createBuildingMesh(type) { return MESH_BUILDERS[type](); }
+
+/* =========================================================
+   6. МОДЕЛИ ЖИТЕЛЕЙ
+   ========================================================= */
+function makeManMesh() {
+  const g = new THREE.Group();
+  const skin = 0xf0c8a0, shirt = 0x4a6fa5, pants = 0x2a3a5a, hair = 0x3a2a1a;
+  box(g, 0.16, 0.55, 0.18, pants, -0.12, 0.28, 0);
+  box(g, 0.16, 0.55, 0.18, pants, 0.12, 0.28, 0);
+  box(g, 0.42, 0.6, 0.26, shirt, 0, 0.86, 0);
+  box(g, 0.12, 0.5, 0.14, shirt, -0.27, 0.86, 0);
+  box(g, 0.12, 0.5, 0.14, shirt, 0.27, 0.86, 0);
+  ball(g, 0.18, skin, 0, 1.38, 0);
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 8, 0, Math.PI * 2, 0, Math.PI * 0.6), M(hair));
+  h.position.y = 1.4; h.castShadow = true; g.add(h);
+  return g;
+}
+function makeWomanMesh() {
+  const g = new THREE.Group();
+  const skin = 0xf5d0b0, dress = 0xd45a8a, hair = 0x8a5a2a;
+  box(g, 0.13, 0.5, 0.14, skin, -0.1, 0.25, 0);
+  box(g, 0.13, 0.5, 0.14, skin, 0.1, 0.25, 0);
+  const d = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.38, 0.72, 10), M(dress));
+  d.position.y = 0.86; d.castShadow = true; d.receiveShadow = true; g.add(d);
+  box(g, 0.34, 0.32, 0.22, dress, 0, 1.38, 0);
+  box(g, 0.1, 0.45, 0.12, skin, -0.22, 1.35, 0);
+  box(g, 0.1, 0.45, 0.12, skin, 0.22, 1.35, 0);
+  ball(g, 0.18, skin, 0, 1.78, 0);
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8, 0, Math.PI * 2, 0, Math.PI * 0.75), M(hair));
+  h.position.y = 1.78; h.castShadow = true; g.add(h);
+  return g;
+}
+function createVillagerMesh(type) { return type === 'man' ? makeManMesh() : makeWomanMesh(); }
+
+/* =========================================================
+   7. МОДЕЛИ ЖИВОТНЫХ
+   ========================================================= */
+function makeFoxMesh() {
+  const g = new THREE.Group();
+  const c = 0xd67a2a;
+  box(g, 0.5, 0.32, 0.85, c, 0, 0.42, 0);
+  box(g, 0.36, 0.3, 0.34, c, 0, 0.55, 0.55);
+  ball(g, 0.07, 0x222222, 0, 0.5, 0.75);
+  cone(g, 0.09, 0.18, 4, c, -0.12, 0.78, 0.5);
+  cone(g, 0.09, 0.18, 4, c, 0.12, 0.78, 0.5);
+  const tail = cyl(g, 0.12, 0.16, 0.55, 6, c, 0, 0.5, -0.55);
+  tail.rotation.x = -0.9;
+  ball(g, 0.12, 0xfff5e8, 0, 0.35, -0.82);
+  [-0.18, 0.18].forEach(x => {
+    cyl(g, 0.06, 0.06, 0.32, 5, c, x, 0.16, 0.3);
+    cyl(g, 0.06, 0.06, 0.32, 5, c, x, 0.16, -0.3);
+  });
+  return g;
+}
+function makeWolfMesh() {
+  const g = new THREE.Group();
+  const c = 0x6a6a6a;
+  box(g, 0.6, 0.42, 1.05, c, 0, 0.55, 0);
+  box(g, 0.42, 0.36, 0.4, c, 0, 0.72, 0.68);
+  ball(g, 0.08, 0x111111, 0, 0.66, 0.9);
+  cone(g, 0.1, 0.22, 4, c, -0.14, 0.95, 0.62);
+  cone(g, 0.1, 0.22, 4, c, 0.14, 0.95, 0.62);
+  const tail = cyl(g, 0.1, 0.14, 0.6, 6, c, 0, 0.6, -0.65);
+  tail.rotation.x = -0.7;
+  [-0.22, 0.22].forEach(x => {
+    cyl(g, 0.08, 0.08, 0.4, 5, c, x, 0.2, 0.38);
+    cyl(g, 0.08, 0.08, 0.4, 5, c, x, 0.2, -0.38);
+  });
+  return g;
+}
+function makeBearMesh() {
+  const g = new THREE.Group();
+  const c = 0x3a2a1a;
+  box(g, 1.0, 0.7, 1.5, c, 0, 0.75, 0);
+  box(g, 0.65, 0.55, 0.6, c, 0, 1.05, 0.95);
+  ball(g, 0.11, 0x111111, 0, 0.95, 1.25);
+  ball(g, 0.13, 0x2a1a0a, -0.18, 1.32, 0.9);
+  ball(g, 0.13, 0x2a1a0a, 0.18, 1.32, 0.9);
+  [-0.36, 0.36].forEach(x => {
+    cyl(g, 0.14, 0.14, 0.55, 6, c, x, 0.28, 0.55);
+    cyl(g, 0.14, 0.14, 0.55, 6, c, x, 0.28, -0.55);
+  });
+  return g;
+}
+const ANIMAL_MESHES = { fox: makeFoxMesh, wolf: makeWolfMesh, bear: makeBearMesh };
+
+/* =========================================================
+   8. ДЕКОР
+   ========================================================= */
+function makeTree() {
+  const g = new THREE.Group();
+  cyl(g, 0.18, 0.3, 2.2, 6, 0x6b4a2f, 0, 1.1, 0);
+  cone(g, 1.35, 2.6, 7, 0x2f7a3a, 0, 3.0, 0);
+  cone(g, 1.05, 2.1, 7, 0x38913f, 0, 4.1, 0);
+  return g;
+}
+function makeBush() {
+  const g = new THREE.Group();
+  ball(g, 0.55, 0x3d8b42, 0, 0.45, 0);
+  ball(g, 0.42, 0x4a9c4c, 0.5, 0.35, 0.25);
+  ball(g, 0.38, 0x357a3a, -0.45, 0.32, -0.2);
+  return g;
+}
+function makeRock() {
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.6, 0), M(0x8d8d86));
+  m.position.y = 0.35; m.rotation.set(Math.random(), Math.random(), Math.random());
+  m.castShadow = true; m.receiveShadow = true; g.add(m);
+  return g;
+}
+(function decorate() {
+  const placed = [];
+  const tooClose = (x, z, r) => placed.some(p => (p.x - x) ** 2 + (p.z - z) ** 2 < (p.r + r) ** 2);
+  for (let i = 0; i < 90; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = 34 + Math.random() * 78;
+    const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    if (Math.abs(x) > 140 || Math.abs(z) > 140) continue;
+    if (tooClose(x, z, 3)) continue;
+    placed.push({ x, z, r: 3 });
+    const t = makeTree();
+    t.scale.setScalar(0.75 + Math.random() * 0.65);
+    t.position.set(x, 0, z);
+    t.rotation.y = Math.random() * Math.PI * 2;
+    scene.add(t);
+  }
+  for (let i = 0; i < 55; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = 26 + Math.random() * 85;
+    const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    if (tooClose(x, z, 1.6)) continue;
+    placed.push({ x, z, r: 1.6 });
+    const o = Math.random() < 0.62 ? makeBush() : makeRock();
+    o.position.set(x, 0, z);
+    o.rotation.y = Math.random() * Math.PI * 2;
+    o.scale.setScalar(0.7 + Math.random() * 0.8);
+    scene.add(o);
+  }
+})();
+
+/* =========================================================
+   9. GHOST / РАЗМЕЩЕНИЕ
+   ========================================================= */
+let ghost = null, ghostMode = null, ghostType = null, ghostBuilding = null;
+let demolishMode = false;
+let ghostRotation = 0;
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0x55ff99, transparent: true, opacity: 0.55, depthWrite: false });
+
+const raycaster = new THREE.Raycaster();
+const ptr = new THREE.Vector2(-10, -10);
+let ptrValid = false;
+
+function clearGhost() {
+  if (ghost) { scene.remove(ghost); ghost = null; }
+  ghostMode = null; ghostType = null; ghostBuilding = null;
+}
+function showBuildGhost(type) {
+  clearGhost();
+  ghost = createBuildingMesh(type);
+  ghostMode = 'build'; ghostType = type;
+  ghostRotation = 0;
+  ghost.rotation.y = ghostRotation;
+  ghost.traverse(o => { if (o.isMesh) { o.material = ghostMat; o.castShadow = false; o.receiveShadow = false; } });
+  ghost.visible = false;
+  scene.add(ghost);
+}
+function showMoveGhost(building) {
+  clearGhost();
+  ghost = createBuildingMesh(building.type);
+  ghostMode = 'move'; ghostBuilding = building;
+  ghostRotation = building.rotation || 0;
+  ghost.rotation.y = ghostRotation;
+  ghost.traverse(o => { if (o.isMesh) { o.material = ghostMat; o.castShadow = false; o.receiveShadow = false; } });
+  ghost.position.set(building.x, 0, building.z);
+  ghost.visible = true;
+  scene.add(ghost);
+  building.group.visible = false;
+}
+function cancelPlacement() {
+  if (ghostBuilding) ghostBuilding.group.visible = true;
+  clearGhost();
+  demolishMode = false;
+  updateTopButtons();
+}
+function updateTopButtons() {
+  document.getElementById('plus-btn').classList.toggle('active', !!ghost || demolishMode);
+}
+
+function isValidPlacement(type, x, z, ignoreBuilding = null) {
+  if (Math.abs(x) > BOUND - 1 || Math.abs(z) > BOUND - 1) return false;
+  const def = BUILDINGS[type];
+  const r = def.radius;
+  for (const b of state.buildings) {
+    if (b === ignoreBuilding) continue;
+    const bDef = b.def;
+    let buffer = 0.9;
+    if (def.isFence && bDef.isFence) buffer = -0.35;
+    const minD = r + bDef.radius + buffer;
+    if ((b.x - x) ** 2 + (b.z - z) ** 2 < minD * minD) return false;
+  }
+  for (const v of state.villagers) {
+    const d = Math.hypot(v.group.position.x - x, v.group.position.z - z);
+    if (d < r + 0.4) return false;
+  }
+  return true;
+}
+function canAfford(cost) { return state.money >= (cost.money || 0) && state.wood >= (cost.wood || 0); }
+function costString(cost) {
+  return [cost.money ? `💰 ${cost.money}` : '', cost.wood ? `🪵 ${cost.wood}` : ''].filter(Boolean).join('  ');
+}
+
+/* -------- уникальные имена и авто-генерация -------- */
+function isNameTaken(name, exclude = null) {
+  for (const b of state.buildings) {
+    if (b !== exclude && b.name === name) return true;
+  }
+  for (const v of state.villagers) {
+    if (v !== exclude && v.name === name) return true;
+  }
+  return false;
+}
+
+function nextAutoName(baseName, existingNames) {
+  const escaped = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('^' + escaped + ' (\\d+)$');
+  const used = new Set();
+  for (const n of existingNames) {
+    const m = n.match(re);
+    if (m) used.add(parseInt(m[1], 10));
+  }
+  let k = 1;
+  while (used.has(k)) k++;
+  return baseName + ' ' + k;
+}
+
+function nextBuildingName(type) {
+  const baseName = BUILDINGS[type].name;
+  const existing = state.buildings.map(b => b.name);
+  return nextAutoName(baseName, existing);
+}
+
+function nextVillagerName(type) {
+  const baseName = VILLAGERS[type].name;
+  const existing = state.villagers.map(v => v.name);
+  return nextAutoName(baseName, existing);
+}
+
+function addBuilding(type, x, z, level = 1, rotation = 0, name = null) {
+  const def = BUILDINGS[type];
+  const group = createBuildingMesh(type);
+  group.position.set(x, 0, z);
+  group.rotation.y = rotation;
+  scene.add(group);
+  state.buildingCounter++;
+  const finalName = name || nextBuildingName(type);
+  const b = {
+    id: state.buildingCounter,
+    type, def, group, x, z,
+    workers: 0, level, rotation,
+    name: finalName,
+    frightenedUntil: 0
+  };
+  group.userData.buildingRef = b;
+  state.buildings.push(b);
+  return b;
+}
+function findBuilding(obj) {
+  while (obj) {
+    if (obj.userData && obj.userData.buildingRef) return obj.userData.buildingRef;
+    obj = obj.parent;
+  }
+  return null;
+}
+
+/* =========================================================
+   10. UI БАЗА
+   ========================================================= */
+const el = {
+  money: document.getElementById('r-money'),
+  food: document.getElementById('r-food'),
+  wood: document.getElementById('r-wood'),
+  pop: document.getElementById('r-pop'),
+  jobs: document.getElementById('r-jobs'),
+  sFood: document.getElementById('s-food'),
+  sWood: document.getElementById('s-wood'),
+  sIncome: document.getElementById('s-income'),
+  sCount: document.getElementById('s-count'),
+  sVillagers: document.getElementById('s-villagers'),
+  toasts: document.getElementById('toasts'),
+  plusMenu: document.getElementById('plus-menu'),
+  ctxMenu: document.getElementById('context-menu')
+};
+
+function fmt(n) { n = Math.round(n * 10) / 10; return Number.isInteger(n) ? n.toString() : n.toFixed(1); }
+function signed(n) { return (n >= 0 ? '+' : '') + fmt(n); }
+
+function toast(msg, cls = '') {
+  const d = document.createElement('div');
+  d.className = 'toast ' + cls;
+  d.textContent = msg;
+  el.toasts.appendChild(d);
+  setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 380); }, 2300);
+}
+
+function showConfirm({ title, body, confirmText = 'Подтвердить', danger = false, onConfirm }) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>${title}</h3>
+      <div class="modal-body">${body}</div>
+      <div class="modal-actions">
+        <button class="mbtn cancel">Отмена</button>
+        <button class="mbtn ${danger ? 'danger' : 'confirm'}">${confirmText}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector('.cancel').onclick = close;
+  overlay.querySelector('.confirm').onclick = () => { close(); onConfirm && onConfirm(); };
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+}
+
+/* --------- окно ввода имени с проверкой уникальности --------- */
+function showNamePrompt(defaultName, title, onConfirm, exclude = null) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>${title}</h3>
+      <div class="modal-body">
+        <input class="name-input" type="text" maxlength="24" value="${defaultName.replace(/"/g,'&quot;')}">
+        <div class="name-error"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="mbtn cancel">Отмена</button>
+        <button class="mbtn confirm">OK</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const input = overlay.querySelector('.name-input');
+  const errEl = overlay.querySelector('.name-error');
+  input.focus();
+  input.select();
+
+  const close = () => overlay.remove();
+  const confirm = () => {
+    const val = input.value.trim();
+    if (!val) { errEl.textContent = 'Введите имя'; return; }
+    if (isNameTaken(val, exclude)) { errEl.textContent = 'Такое имя уже используется'; return; }
+    close();
+    onConfirm(val);
+  };
+  overlay.querySelector('.cancel').onclick = close;
+  overlay.querySelector('.confirm').onclick = confirm;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+}
+
+/* --------- список жителей --------- */
+function showVillagerList() {
+  let html = `<h3>👥 Жители (${state.villagers.length})</h3>`;
+  if (state.villagers.length === 0) {
+    html += `<div class="modal-body">Нет жителей. Наня́ть можно в меню ➕.</div>
+      <div class="modal-actions"><button class="mbtn cancel">Закрыть</button></div>`;
+  } else {
+    html += '<div class="picker-list">';
+    state.villagers.forEach((v, idx) => {
+      const h = Math.max(0, Math.round(v.hunger));
+      const hColor = h > 60 ? '#5ee08a' : h > 30 ? '#ffd66b' : '#ff7a7a';
+      html += `<button class="picker-item" data-idx="${idx}">
+        <span>${v.def.icon} <b>${v.name}</b>
+          <span class="sub" style="display:block;margin-top:2px">
+            ${v.home ? '🏠 ' + v.home.name : '🏠 нет'} ·
+            ${v.workplace ? '💼 ' + v.workplace.name : '💼 нет'}
+          </span>
+        </span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:#8fa5b8">Сыт</span>
+          <span class="hunger-bar"><span style="width:${h}%;background:${hColor}"></span></span>
+        </span>
+      </button>`;
+    });
+    html += '</div>';
+    html += `<div class="modal-actions"><button class="mbtn cancel" style="flex:1">Закрыть</button></div>`;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal">${html}</div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const closeBtn = overlay.querySelector('.cancel');
+  if (closeBtn) closeBtn.onclick = () => overlay.remove();
+
+  overlay.querySelectorAll('.picker-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx, 10);
+      const v = state.villagers[idx];
+      if (v) { focusOn(v.group.position, 16); overlay.remove(); }
+    });
+    // ПКМ — открыть меню жителя
+    btn.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx, 10);
+      const v = state.villagers[idx];
+      if (!v) return;
+      overlay.remove();
+      openVillagerContextMenu(e.clientX, e.clientY, v);
+    });
+  });
+}
+
+/* --------- список зданий --------- */
+function showBuildingList() {
+  let html = `<h3>🏠 Здания (${state.buildings.length})</h3>`;
+  if (state.buildings.length === 0) {
+    html += `<div class="modal-body">Нет зданий. Постройте в меню ➕.</div>
+      <div class="modal-actions"><button class="mbtn cancel">Закрыть</button></div>`;
+  } else {
+    html += '<div class="picker-list">';
+    for (const b of state.buildings) {
+      html += `<button class="picker-item" data-id="${b.id}">
+        <span>${b.def.icon} <b>${b.name}</b>
+          <span class="sub" style="display:block;margin-top:2px">${b.def.name} · Ур. ${b.level}</span>
+        </span>
+      </button>`;
+    }
+    html += '</div>';
+    html += `<div class="modal-actions"><button class="mbtn cancel" style="flex:1">Закрыть</button></div>`;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal">${html}</div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const closeBtn = overlay.querySelector('.cancel');
+  if (closeBtn) closeBtn.onclick = () => overlay.remove();
+
+  overlay.querySelectorAll('.picker-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id, 10);
+      const b = state.buildings.find(x => x.id === id);
+      if (b) { focusOn(b.group.position, 18); overlay.remove(); }
+    });
+    btn.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id, 10);
+      const b = state.buildings.find(x => x.id === id);
+      if (!b) return;
+      overlay.remove();
+      openBuildingContextMenu(e.clientX, e.clientY, b);
+    });
+  });
+}
+
+function focusOn(pos, dist) {
+  controls.target.set(pos.x, 1, pos.z);
+  const dir = new THREE.Vector3(0.7, 0.7, 0.7).normalize();
+  camera.position.set(pos.x + dir.x * dist, 1 + dir.y * dist, pos.z + dir.z * dist);
+  controls.update();
+}
+
+document.getElementById('list-villagers').addEventListener('click', showVillagerList);
+document.getElementById('list-buildings').addEventListener('click', showBuildingList);
+
+/* --------- инструкция --------- */
+document.getElementById('help-btn').addEventListener('click', () => {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" style="width:min(620px,94vw)">
+      <h3>📖 Инструкция</h3>
+      <div class="modal-body">
+        <div class="help-content">
+          <div class="row"><span>ЛКМ + тянуть</span><b>Вращение камеры</b></div>
+          <div class="row"><span>ПКМ + тянуть</span><b>Перемещение камеры</b></div>
+          <div class="row"><span>ЛКМ по жителю + тянуть</span><b>Перетащить жителя</b></div>
+          <div class="row"><span>ПКМ по объекту</span><b>Меню действий</b></div>
+          <div class="row"><span>ПКМ в списке объектов</span><b>Меню объекта</b></div>
+          <div class="row"><span>Колесо</span><b>Приближение</b></div>
+          <div class="row"><span><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></span><b>Перемещение камеры</b></div>
+          <div class="row"><span><kbd>Q</kbd> <kbd>E</kbd></span><b>Поворот здания при размещении</b></div>
+          <div class="row"><span><kbd>Esc</kbd></span><b>Отмена действия</b></div>
+          <div class="row"><span>Кнопки слева</span><b>Списки жителей и зданий</b></div>
+          <div class="row"><span>Кнопка ➕</span><b>Здания, окружение, ресурсы, жители</b></div>
+          <div class="row"><span>Переименование</span><b>ПКМ по объекту → Переименовать</b></div>
+          <div class="row"><span style="color:#ffe090">⚠ Опасность</span><b>Лисы, волки и медведи</b></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="mbtn confirm" style="flex:1">Понятно</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.confirm').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+});
+
+/* =========================================================
+   11. "+" МЕНЮ
+   ========================================================= */
+function buildPlusMenu() {
+  let html = '';
+
+  // Здания
+  html += '<div class="pm-section"><div class="pm-head">🏠 Здания</div><div class="pm-grid">';
+  for (const type of BUILDING_TYPES) {
+    const def = BUILDINGS[type];
+    html += `<button class="pm-item" data-action="build" data-type="${type}">
+      <span class="pm-name">${def.icon} ${def.name}</span>
+      <span class="pm-cost">${costString(def.cost)}</span>
+      <span class="pm-info">${def.info}</span>
+    </button>`;
+  }
+  html += '</div></div>';
+
+  // Окружение
+  html += '<div class="pm-section"><div class="pm-head">🌳 Окружение</div><div class="pm-grid">';
+  for (const type of ENVIRONMENT_TYPES) {
+    const def = BUILDINGS[type];
+    html += `<button class="pm-item" data-action="build" data-type="${type}">
+      <span class="pm-name">${def.icon} ${def.name}</span>
+      <span class="pm-cost">${costString(def.cost)}</span>
+      <span class="pm-info">${def.info}</span>
+    </button>`;
+  }
+  html += '</div></div>';
+
+  // Ресурсы
+  html += '<div class="pm-section"><div class="pm-head">🍞 Ресурсы</div><div class="pm-grid">';
+  for (const key in SHOP_ITEMS) {
+    const it = SHOP_ITEMS[key];
+    html += `<button class="pm-item" data-action="buy" data-type="${key}">
+      <span class="pm-name">${it.icon} ${it.name}</span>
+      <span class="pm-cost">${costString(it.cost)}</span>
+      <span class="pm-info">${it.info}</span>
+    </button>`;
+  }
+  html += '</div></div>';
+
+  // Жители
+  html += '<div class="pm-section"><div class="pm-head">👥 Жители</div><div class="pm-grid">';
+  for (const type in VILLAGERS) {
+    const def = VILLAGERS[type];
+    html += `<button class="pm-item" data-action="villager" data-type="${type}">
+      <span class="pm-name">${def.icon} ${def.name}</span>
+      <span class="pm-cost">${costString(def.cost)}</span>
+      <span class="pm-info">${def.info}</span>
+    </button>`;
+  }
+  html += '</div></div>';
+
+  el.plusMenu.innerHTML = html;
+
+  el.plusMenu.querySelectorAll('.pm-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      const type = btn.dataset.type;
+      closePlusMenu();
+      if (action === 'build') openBuildConfirm(type);
+      else if (action === 'buy') openBuyConfirm(type);
+      else if (action === 'villager') openVillagerConfirm(type);
+    });
+  });
+}
+
+function openPlusMenu() {
+  closeContextMenu();
+  el.plusMenu.classList.add('open');
+  document.getElementById('plus-btn').classList.add('active');
+}
+function closePlusMenu() {
+  el.plusMenu.classList.remove('open');
+  if (!ghost && !demolishMode) document.getElementById('plus-btn').classList.remove('active');
+}
+document.getElementById('plus-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  if (el.plusMenu.classList.contains('open')) closePlusMenu();
+  else openPlusMenu();
+});
+
+/* --------- подтверждение постройки --------- */
+function openBuildConfirm(type) {
+  const def = BUILDINGS[type];
+  const affordable = canAfford(def.cost);
+  showConfirm({
+    title: 'Подтверждение постройки',
+    body: `Построить <b>${def.icon} ${def.name}</b>?<br>
+      <span class="cost">Стоимость: ${costString(def.cost)}</span>
+      <span class="desc">${def.info}</span>
+      <span class="desc">Q / E — поворот при размещении</span>
+      ${affordable ? '' : '<span class="desc" style="color:#ff9090">⚠ Недостаточно ресурсов</span>'}`,
+    confirmText: 'Построить',
+    onConfirm: () => {
+      if (!canAfford(def.cost)) { toast('Недостаточно ресурсов', 'err'); return; }
+      showBuildGhost(type);
+      updateTopButtons();
+      toast(`Выберите место · Q/E — поворот`, '');
+    }
+  });
+}
+
+/* --------- подтверждение покупки ресурса --------- */
+function openBuyConfirm(key) {
+  const it = SHOP_ITEMS[key];
+  const affordable = canAfford(it.cost);
+  showConfirm({
+    title: 'Подтверждение покупки',
+    body: `Купить <b>${it.icon} ${it.name}</b>?<br>
+      <span class="cost">Цена: ${costString(it.cost)}</span>
+      <span class="desc">${it.info}</span>
+      ${affordable ? '' : '<span class="desc" style="color:#ff9090">⚠ Недостаточно денег</span>'}`,
+    confirmText: 'Купить',
+    onConfirm: () => {
+      if (!canAfford(it.cost)) { toast('Недостаточно денег', 'err'); return; }
+      state.money -= it.cost.money || 0;
+      state.wood -= it.cost.wood || 0;
+      it.apply();
+      toast(`${it.icon} ${it.info}`, 'ok');
+    }
+  });
+}
+
+/* --------- подтверждение найма жителя --------- */
+function openVillagerConfirm(type) {
+  const def = VILLAGERS[type];
+  const affordable = canAfford(def.cost);
+  showConfirm({
+    title: 'Подтверждение найма',
+    body: `Нанять <b>${def.icon} ${def.name}</b>?<br>
+      <span class="cost">Стоимость: ${costString(def.cost)}</span>
+      <span class="desc">${def.info}</span>
+      <span class="desc">Имя будет присвоено автоматически.<br>Переименовать: ПКМ → Переименовать</span>
+      ${affordable ? '' : '<span class="desc" style="color:#ff9090">⚠ Недостаточно ресурсов</span>'}`,
+    confirmText: 'Нанять',
+    onConfirm: () => {
+      if (!canAfford(def.cost)) { toast('Недостаточно ресурсов', 'err'); return; }
+      const spot = findFreeVillagerSpot();
+      if (!spot) { toast('Нет свободного места', 'err'); return; }
+      state.money -= def.cost.money || 0;
+      state.wood -= def.cost.wood || 0;
+      const v = spawnVillager(type, spot.x, spot.z);
+      autoAssign(v);
+      toast(`${def.icon} ${v.name} прибыл(а) в деревню`, 'ok');
+    }
+  });
+}
+
+/* =========================================================
+   12. ЖИТЕЛИ
+   ========================================================= */
+function houseCapacity(house) { return (house.def.capacity || 0) * (house.level || 1); }
+function workplaceSlots(workplace) { return (workplace.def.jobs || 0) * (workplace.level || 1); }
+function getHouseOccupants(house) { return state.villagers.filter(v => v.home === house).length; }
+function getWorkersAt(workplace) { return state.villagers.filter(v => v.workplace === workplace).length; }
+
+function findFreeVillagerSpot() {
+  for (let i = 0; i < 60; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = 3 + Math.random() * 10;
+    const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    let ok = true;
+    for (const b of state.buildings) {
+      if ((b.x - x) ** 2 + (b.z - z) ** 2 < (b.def.radius + 0.6) ** 2) { ok = false; break; }
+    }
+    if (ok) return { x, z };
+  }
+  return null;
+}
+
+function spawnVillager(type, x, z, name = null) {
+  const def = VILLAGERS[type];
+  const group = createVillagerMesh(type);
+  group.position.set(x, 0, z);
+  scene.add(group);
+  const finalName = name || nextVillagerName(type);
+  const v = {
+    type, def, group, x, z, name: finalName,
+    home: null, workplace: null,
+    behaviorState: 'idle',
+    target: null, waitTimer: Math.random() * 1.5,
+    moveTimer: 0,
+    bob: Math.random() * 10,
+    speed: type === 'man' ? 1.55 : 1.35,
+    homeAngle: Math.random() * Math.PI * 2,
+    workAngle: Math.random() * Math.PI * 2,
+    hunger: 100
+  };
+  group.userData.villagerRef = v;
+  state.villagers.push(v);
+  return v;
+}
+
+function findVillager(obj) {
+  while (obj) {
+    if (obj.userData && obj.userData.villagerRef) return obj.userData.villagerRef;
+    obj = obj.parent;
+  }
+  return null;
+}
+
+function autoAssign(v) {
+  const houses = state.buildings.filter(b => b.def.capacity > 0 && getHouseOccupants(b) < houseCapacity(b));
+  if (houses.length) v.home = houses[0];
+  const jobs = state.buildings.filter(b => b.def.jobs > 0 && getWorkersAt(b) < workplaceSlots(b));
+  if (jobs.length) v.workplace = jobs[0];
+}
+
+function getSpotOutside(building, angle) {
+  const r = building.def.radius * 0.75 + 0.8;
+  return {
+    x: building.x + Math.cos(angle) * r,
+    z: building.z + Math.sin(angle) * r
+  };
+}
+
+function updateVillagers(dt) {
+  for (const v of state.villagers) {
+    if (v === draggingVillager) continue;
+
+    v.hunger -= dt * 0.35;
+    if (v.hunger < 0) v.hunger = 0;
+    if (v.hunger <= 0) { v._dead = true; continue; }
+
+    if (v.waitTimer > 0) {
+      v.waitTimer -= dt;
+      v.group.position.y = 0;
+      continue;
+    }
+
+    if (!v.target) decideVillagerAction(v);
+    if (!v.target) continue;
+
+    const dx = v.target.x - v.group.position.x;
+    const dz = v.target.z - v.group.position.z;
+    const dist = Math.hypot(dx, dz);
+
+    v.moveTimer += dt;
+    if (v.moveTimer > 30) { v.target = null; v.moveTimer = 0; v.behaviorState = 'idle'; continue; }
+
+    if (dist < 0.4) {
+      v.target = null;
+      v.moveTimer = 0;
+      v.x = v.group.position.x;
+      v.z = v.group.position.z;
+      onVillagerArrive(v);
+      continue;
+    }
+
+    const step = Math.min(v.speed * dt, dist);
+    const nx = v.group.position.x + (dx / dist) * step;
+    const nz = v.group.position.z + (dz / dist) * step;
+    v.group.position.x = nx;
+    v.group.position.z = nz;
+    v.group.rotation.y = Math.atan2(dx, dz);
+    v.bob += dt * 9;
+    v.group.position.y = Math.abs(Math.sin(v.bob)) * 0.06;
+
+    avoidBuildings(v.group.position);
+  }
+
+  for (let i = state.villagers.length - 1; i >= 0; i--) {
+    const v = state.villagers[i];
+    if (v._dead) {
+      toast(`💀 ${v.name} умер(ла) от голода`, 'err');
+      scene.remove(v.group);
+      v.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+      state.villagers.splice(i, 1);
+    }
+  }
+}
+
+function avoidBuildings(pos) {
+  for (const b of state.buildings) {
+    if (b.def.isFence) continue;
+    const r = b.def.radius * 0.75 + 0.5;
+    const dx = pos.x - b.x;
+    const dz = pos.z - b.z;
+    const d = Math.hypot(dx, dz);
+    if (d < r) {
+      if (d > 0.01) {
+        pos.x = b.x + (dx / d) * r;
+        pos.z = b.z + (dz / d) * r;
+      } else {
+        pos.x = b.x + r;
+      }
+    }
+  }
+}
+
+function decideVillagerAction(v) {
+  if (v.hunger < 45) {
+    if (state.food >= 15) {
+      const eater = pickEatingSpot();
+      if (eater) {
+        v.target = eater.spot;
+        v.behaviorState = 'toEat';
+        return;
+      }
+    }
+  }
+
+  const hasWork = !!v.workplace;
+  const hasHome = !!v.home;
+
+  if (hasWork && hasHome) {
+    if (v.behaviorState === 'working') {
+      v.homeAngle = Math.random() * Math.PI * 2;
+      v.target = getSpotOutside(v.home, v.homeAngle);
+      v.behaviorState = 'toHome';
+    } else if (v.behaviorState === 'resting') {
+      v.workAngle = Math.random() * Math.PI * 2;
+      v.target = getSpotOutside(v.workplace, v.workAngle);
+      v.behaviorState = 'toWork';
+    } else if (v.behaviorState === 'toWork' || v.behaviorState === 'toHome') {
+      // продолжаем
+    } else {
+      v.workAngle = Math.random() * Math.PI * 2;
+      v.target = getSpotOutside(v.workplace, v.workAngle);
+      v.behaviorState = 'toWork';
+    }
+  } else if (hasWork) {
+    v.workAngle = Math.random() * Math.PI * 2;
+    v.target = getSpotOutside(v.workplace, v.workAngle);
+    v.behaviorState = 'wandering';
+  } else if (hasHome) {
+    v.homeAngle = Math.random() * Math.PI * 2;
+    v.target = getSpotOutside(v.home, v.homeAngle);
+    v.behaviorState = 'wandering';
+  } else {
+    v.target = pickRandomSpot();
+    v.behaviorState = 'wandering';
+  }
+}
+
+function pickEatingSpot() {
+  const markets = state.buildings.filter(b => b.type === 'market');
+  let target = markets[0];
+  if (!target) target = state.buildings.filter(b => b.def.capacity > 0)[0];
+  if (!target) return null;
+  const angle = Math.random() * Math.PI * 2;
+  return { spot: getSpotOutside(target, angle), angle };
+}
+
+function pickRandomSpot() {
+  for (let i = 0; i < 20; i++) {
+    const x = (Math.random() - 0.5) * 2 * (BOUND - 6);
+    const z = (Math.random() - 0.5) * 2 * (BOUND - 6);
+    let ok = true;
+    for (const b of state.buildings) {
+      if (b.def.isFence) continue;
+      if ((b.x - x) ** 2 + (b.z - z) ** 2 < (b.def.radius + 0.8) ** 2) { ok = false; break; }
+    }
+    if (ok) return { x, z };
+  }
+  return { x: 0, z: 0 };
+}
+
+function onVillagerArrive(v) {
+  if (v.behaviorState === 'toEat') {
+    if (state.food >= 15) {
+      state.food -= 15;
+      v.hunger = 100;
+      toast(`${v.def.icon} ${v.name} поел(а)`, '');
+    }
+    v.behaviorState = 'idle';
+    v.waitTimer = 1 + Math.random() * 2;
+  } else if (v.behaviorState === 'toWork') {
+    v.behaviorState = 'working';
+    v.waitTimer = 8 + Math.random() * 8;
+  } else if (v.behaviorState === 'toHome') {
+    v.behaviorState = 'resting';
+    v.waitTimer = 9 + Math.random() * 10;
+  } else {
+    v.behaviorState = 'idle';
+    v.waitTimer = 1.5 + Math.random() * 2.5;
+  }
+  v.moveTimer = 0;
+}
+
+/* =========================================================
+   13. ЖИВОТНЫЕ
+   ========================================================= */
+function spawnAnimal() {
+  const hasCoop = state.buildings.some(b => b.type === 'coop');
+  const available = Object.keys(ANIMAL_TYPES).filter(k => {
+    const t = ANIMAL_TYPES[k];
+    if (t.needsCoop && !hasCoop) return false;
+    return true;
+  });
+  if (available.length === 0) return null;
+
+  let total = 0;
+  for (const k of available) total += ANIMAL_TYPES[k].weight;
+  let r = Math.random() * total;
+  let chosen = available[0];
+  for (const k of available) {
+    r -= ANIMAL_TYPES[k].weight;
+    if (r <= 0) { chosen = k; break; }
+  }
+
+  const def = ANIMAL_TYPES[chosen];
+  const mesh = ANIMAL_MESHES[chosen]();
+  const side = Math.floor(Math.random() * 4);
+  const e = BOUND - 1;
+  let x, z;
+  if (side === 0) { x = (Math.random() * 2 - 1) * e; z = -e; }
+  else if (side === 1) { x = (Math.random() * 2 - 1) * e; z = e; }
+  else if (side === 2) { x = -e; z = (Math.random() * 2 - 1) * e; }
+  else { x = e; z = (Math.random() * 2 - 1) * e; }
+  mesh.position.set(x, 0, z);
+  scene.add(mesh);
+
+  let targetBuilding = null;
+  if (def.target === 'coop') {
+    const coops = state.buildings.filter(b => b.type === 'coop');
+    if (coops.length) targetBuilding = coops[Math.floor(Math.random() * coops.length)];
+  } else if (def.target === 'house') {
+    const houses = state.buildings.filter(b => b.def.capacity > 0);
+    if (houses.length) targetBuilding = houses[Math.floor(Math.random() * houses.length)];
+  }
+  if (!targetBuilding) { scene.remove(mesh); return null; }
+
+  const a = {
+    type: chosen, def, group: mesh,
+    target: { x: targetBuilding.x, z: targetBuilding.z },
+    targetBuilding,
+    state: 'approaching',
+    leaveTimer: 0, bob: 0, killCooldown: 0
+  };
+  mesh.userData.animalRef = a;
+  state.animals.push(a);
+  toast(`${def.icon} ${def.name} приближается к деревне!`, 'warn');
+  return a;
+}
+
+function updateAnimals(dt) {
+  for (let i = state.animals.length - 1; i >= 0; i--) {
+    const a = state.animals[i];
+    const g = a.group;
+
+    if (a.state === 'leaving') {
+      const dx = a.leavePos.x - g.position.x;
+      const dz = a.leavePos.z - g.position.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 0.6) {
+        scene.remove(g);
+        g.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+        state.animals.splice(i, 1);
+        continue;
+      }
+      const step = Math.min(a.def.speed * dt, dist);
+      g.position.x += (dx / dist) * step;
+      g.position.z += (dz / dist) * step;
+      g.rotation.y = Math.atan2(dx, dz);
+      a.bob += dt * 10;
+      g.position.y = Math.abs(Math.sin(a.bob)) * 0.05;
+      continue;
+    }
+
+    if (a.state === 'atTarget') {
+      a.leaveTimer -= dt;
+      if (a.leaveTimer <= 0) {
+        const side = Math.floor(Math.random() * 4);
+        const e = BOUND + 5;
+        let lx, lz;
+        if (side === 0) { lx = (Math.random() * 2 - 1) * e; lz = -e; }
+        else if (side === 1) { lx = (Math.random() * 2 - 1) * e; lz = e; }
+        else if (side === 2) { lx = -e; lz = (Math.random() * 2 - 1) * e; }
+        else { lx = e; lz = (Math.random() * 2 - 1) * e; }
+        a.state = 'leaving';
+        a.leavePos = { x: lx, z: lz };
+      }
+      continue;
+    }
+
+    const dx = a.target.x - g.position.x;
+    const dz = a.target.z - g.position.z;
+    const dist = Math.hypot(dx, dz);
+
+    if (dist < 2.5) {
+      a.state = 'atTarget';
+      a.leaveTimer = 4 + Math.random() * 4;
+      onAnimalReachTarget(a);
+      continue;
+    }
+
+    const step = Math.min(a.def.speed * dt, dist);
+    g.position.x += (dx / dist) * step;
+    g.position.z += (dz / dist) * step;
+    g.rotation.y = Math.atan2(dx, dz);
+    a.bob += dt * 10;
+    g.position.y = Math.abs(Math.sin(a.bob)) * 0.05;
+
+    if (a.type === 'bear') {
+      a.killCooldown -= dt;
+      if (a.killCooldown <= 0) {
+        for (const v of state.villagers) {
+          if (v._dead) continue;
+          const vd = Math.hypot(v.group.position.x - g.position.x, v.group.position.z - g.position.z);
+          if (vd < 1.8) {
+            v._dead = true;
+            toast(`🐻 ${v.name} убит(а) медведем!`, 'err');
+            a.killCooldown = 2;
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
+function onAnimalReachTarget(a) {
+  if (a.type === 'bear') {
+    const steal = Math.min(state.food, 40);
+    if (steal > 0) {
+      state.food -= steal;
+      toast(`🐻 Медведь съел ${Math.round(steal)} еды!`, 'err');
+    } else {
+      toast('🐻 Медведь порылся в кладовой, но еды не нашёл', '');
+    }
+  } else if (a.type === 'fox' || a.type === 'wolf') {
+    if (a.targetBuilding) {
+      a.targetBuilding.frightenedUntil = performance.now() / 1000 + 25;
+      toast(`${a.def.icon} ${a.def.name} напугал(а) кур в ${a.targetBuilding.name}!`, 'warn');
+    }
+  }
+}
+
+/* =========================================================
+   14. КОНТЕКСТНОЕ МЕНЮ
+   ========================================================= */
+function openBuildingContextMenu(screenX, screenY, building) {
+  const def = building.def;
+  const lvl = building.level || 1;
+  const maxLvl = 3;
+  const upgradeCost = {
+    money: Math.round((def.cost.money || 0) * 0.8 * lvl),
+    wood: Math.round((def.cost.wood || 0) * 0.6 * lvl)
+  };
+  const canUpgrade = lvl < maxLvl && canAfford(upgradeCost) && !def.isFence;
+
+  el.ctxMenu.innerHTML = `
+    <div class="ctx-title">
+      <span>${def.icon} ${building.name}</span>
+      <span class="lvl">${def.isFence ? 'окружение' : 'Ур. ' + lvl + '/' + maxLvl}</span>
+    </div>
+    <button class="ctx-btn" data-act="rename"><span>✏️</span> Переименовать</button>
+    <button class="ctx-btn" data-act="move"><span>↔️</span> Переместить</button>
+    <button class="ctx-btn" data-act="rotate"><span>🔄</span> Повернуть 45°</button>
+    ${def.isFence ? '' : `
+      <button class="ctx-btn" data-act="upgrade" ${lvl >= maxLvl ? 'disabled' : (canUpgrade ? '' : 'disabled')}>
+        <span>⬆️</span> Улучшить
+        <span class="sub">${lvl >= maxLvl ? 'макс.' : costString(upgradeCost)}</span>
+      </button>
+    `}
+    <button class="ctx-btn danger" data-act="delete">
+      <span>🗑️</span> Удалить
+      <span class="sub">+50% возврат</span>
+    </button>
+  `;
+  positionCtxMenu(screenX, screenY);
+
+  el.ctxMenu.querySelectorAll('.ctx-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const act = btn.dataset.act;
+      closeContextMenu();
+      if (act === 'rename') {
+        showNamePrompt(building.name, 'Имя здания', (newName) => {
+          const old = building.name;
+          building.name = newName;
+          toast(`✏️ "${old}" → "${newName}"`, 'ok');
+        }, building);
+      }
+      else if (act === 'move') { showMoveGhost(building); updateTopButtons(); toast('Кликните по земле · Q/E — поворот', ''); }
+      else if (act === 'rotate') rotateBuilding(building, Math.PI / 4);
+      else if (act === 'upgrade') confirmUpgrade(building);
+      else if (act === 'delete') confirmDelete(building);
+    });
+  });
+}
+
+function openVillagerContextMenu(screenX, screenY, v) {
+  const homeLabel = v.home ? `🏠 ${v.home.name}` : '— нет';
+  const workLabel = v.workplace ? `💼 ${v.workplace.name}` : '— без работы';
+  const hunger = Math.max(0, Math.round(v.hunger));
+
+  let html = `
+    <div class="ctx-title">
+      <span>${v.def.icon} ${v.name}</span>
+      <span class="lvl">${stateLabel(v.behaviorState)}</span>
+    </div>
+    <div style="padding:6px 12px;font-size:11.5px;color:#8fa5b8">
+      Сытость: ${hunger}%
+      <div style="height:5px;background:rgba(255,255,255,.1);border-radius:3px;margin-top:4px;overflow:hidden">
+        <div style="width:${hunger}%;height:100%;background:${hunger>60?'#5ee08a':hunger>30?'#ffd66b':'#ff7a7a'};border-radius:3px"></div>
+      </div>
+    </div>
+    <button class="ctx-btn" data-act="rename"><span>✏️</span> Переименовать</button>
+    <button class="ctx-btn" data-act="assign-home">
+      <span>🏠</span> ${v.home ? 'Сменить дом' : 'Прописать в дом'}
+      <span class="sub">${homeLabel}</span>
+    </button>
+  `;
+  if (v.workplace) {
+    html += `<button class="ctx-btn" data-act="assign-work">
+      <span>💼</span> Сменить работу
+      <span class="sub">${workLabel}</span>
+    </button>
+    <button class="ctx-btn" data-act="fire"><span>🚫</span> Уволить</button>`;
+  } else {
+    html += `<button class="ctx-btn" data-act="assign-work"><span>💼</span> Назначить на работу</button>`;
+  }
+  html += `
+    <button class="ctx-btn" data-act="send-home" ${v.home ? '' : 'disabled'}>
+      <span>🏃</span> Отправить домой
+    </button>
+    <button class="ctx-btn" data-act="send-work" ${v.workplace ? '' : 'disabled'}>
+      <span>🏃</span> Отправить на работу
+    </button>
+    <button class="ctx-btn" data-act="feed" ${state.food >= 15 ? '' : 'disabled'}>
+      <span>🍞</span> Покормить
+      <span class="sub">15 еды</span>
+    </button>
+    <button class="ctx-btn danger" data-act="delete">
+      <span>🗑️</span> Удалить жителя
+    </button>
+  `;
+
+  el.ctxMenu.innerHTML = html;
+  positionCtxMenu(screenX, screenY);
+
+  el.ctxMenu.querySelectorAll('.ctx-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const act = btn.dataset.act;
+      closeContextMenu();
+      if (act === 'rename') {
+        showNamePrompt(v.name, 'Имя жителя', (newName) => {
+          const old = v.name;
+          v.name = newName;
+          toast(`✏️ "${old}" → "${newName}"`, 'ok');
+        }, v);
+      }
+      else if (act === 'assign-home') showHomePicker(v);
+      else if (act === 'assign-work') showWorkPicker(v);
+      else if (act === 'fire') fireVillager(v);
+      else if (act === 'send-home') sendVillagerHome(v);
+      else if (act === 'send-work') sendVillagerWork(v);
+      else if (act === 'feed') { if (state.food >= 15) { state.food -= 15; v.hunger = 100; toast(`${v.name} поел(а)`, 'ok'); } }
+      else if (act === 'delete') confirmDeleteVillager(v);
+    });
+  });
+}
+
+function stateLabel(s) {
+  return {
+    idle: '⏳ отдыхает',
+    toWork: '➡️ идёт на работу',
+    toHome: '⬅️ идёт домой',
+    toEat: '🍞 идёт есть',
+    working: '🛠️ работает',
+    resting: '😴 отдыхает',
+    wandering: '🚶 гуляет'
+  }[s] || '👤';
+}
+
+function positionCtxMenu(screenX, screenY) {
+  el.ctxMenu.classList.add('open');
+  const rect = el.ctxMenu.getBoundingClientRect();
+  const x = Math.min(screenX, window.innerWidth - rect.width - 8);
+  const y = Math.min(screenY, window.innerHeight - rect.height - 8);
+  el.ctxMenu.style.left = x + 'px';
+  el.ctxMenu.style.top = y + 'px';
+}
+function closeContextMenu() { el.ctxMenu.classList.remove('open'); }
+
+function fireVillager(v) {
+  if (!v.workplace) return;
+  const name = v.workplace.name;
+  v.workplace = null;
+  v.target = null; v.waitTimer = 0; v.behaviorState = 'idle';
+  toast(`${v.name} уволен(а) с ${name}`, '');
+}
+
+function sendVillagerHome(v) {
+  if (!v.home) { toast('Нет дома', 'err'); return; }
+  v.homeAngle = Math.random() * Math.PI * 2;
+  v.target = getSpotOutside(v.home, v.homeAngle);
+  v.behaviorState = 'toHome';
+  v.waitTimer = 0; v.moveTimer = 0;
+}
+function sendVillagerWork(v) {
+  if (!v.workplace) { toast('Нет работы', 'err'); return; }
+  v.workAngle = Math.random() * Math.PI * 2;
+  v.target = getSpotOutside(v.workplace, v.workAngle);
+  v.behaviorState = 'toWork';
+  v.waitTimer = 0; v.moveTimer = 0;
+}
+
+function confirmDeleteVillager(v) {
+  showConfirm({
+    title: 'Удалить жителя?',
+    body: `${v.def.icon} <b>${v.name}</b> покинет деревню.`,
+    confirmText: 'Удалить',
+    danger: true,
+    onConfirm: () => {
+      scene.remove(v.group);
+      v.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+      const i = state.villagers.indexOf(v);
+      if (i >= 0) state.villagers.splice(i, 1);
+      toast('Житель удалён', '');
+    }
+  });
+}
+
+function showHomePicker(v) {
+  const houses = state.buildings.filter(b => (b.def.capacity || 0) > 0);
+  if (houses.length === 0) { toast('Нет домов', 'err'); return; }
+
+  let html = `<h3>🏠 Выберите дом</h3><div class="picker-list">`;
+  houses.forEach(b => {
+    const occ = getHouseOccupants(b);
+    const cap = houseCapacity(b);
+    const full = occ >= cap && b !== v.home;
+    html += `<button class="picker-item" data-id="${b.id}" ${full ? 'disabled' : ''}>
+      <span>🏠 ${b.name}</span>
+      <span class="sub">${occ}/${cap}${b === v.home ? ' · текущий' : ''}</span>
+    </button>`;
+  });
+  html += `</div><div class="modal-actions"><button class="mbtn cancel">Отмена</button></div>`;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal">${html}</div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.cancel').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelectorAll('.picker-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const id = parseInt(btn.dataset.id, 10);
+      const house = state.buildings.find(b => b.id === id);
+      if (house) {
+        v.home = house;
+        v.target = null; v.waitTimer = 0; v.moveTimer = 0;
+        if (v.behaviorState !== 'working') v.behaviorState = 'idle';
+        toast(`${v.name} прописан(а) в ${house.name}`, 'ok');
+      }
+      overlay.remove();
+    });
+  });
+}
+
+function showWorkPicker(v) {
+  const workplaces = state.buildings.filter(b => (b.def.jobs || 0) > 0);
+  if (workplaces.length === 0) { toast('Нет рабочих мест', 'err'); return; }
+
+  let html = `<h3>💼 Выберите работу</h3><div class="picker-list">`;
+  workplaces.forEach(b => {
+    const w = getWorkersAt(b);
+    const slots = workplaceSlots(b);
+    const full = w >= slots && b !== v.workplace;
+    html += `<button class="picker-item" data-id="${b.id}" ${full ? 'disabled' : ''}>
+      <span>💼 ${b.name}</span>
+      <span class="sub">${w}/${slots}${b === v.workplace ? ' · текущая' : ''}</span>
+    </button>`;
+  });
+  html += `</div><div class="modal-actions"><button class="mbtn cancel">Отмена</button></div>`;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal">${html}</div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.cancel').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelectorAll('.picker-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const id = parseInt(btn.dataset.id, 10);
+      const wp = state.buildings.find(b => b.id === id);
+      if (wp) {
+        v.workplace = wp;
+        v.target = null; v.waitTimer = 0; v.moveTimer = 0;
+        v.behaviorState = 'idle';
+        toast(`${v.name} работает на ${wp.name}`, 'ok');
+      }
+      overlay.remove();
+    });
+  });
+}
+
+function confirmUpgrade(b) {
+  const def = b.def;
+  const lvl = b.level || 1;
+  if (lvl >= 3) { toast('Максимальный уровень', 'err'); return; }
+  const cost = {
+    money: Math.round((def.cost.money || 0) * 0.8 * lvl),
+    wood: Math.round((def.cost.wood || 0) * 0.6 * lvl)
+  };
+  showConfirm({
+    title: `Улучшить ${b.name}?`,
+    body: `Уровень ${lvl} → ${lvl + 1}<br>
+      <span class="cost">Стоимость: ${costString(cost)}</span>
+      <span class="desc">Производство ×${lvl + 1}</span>`,
+    confirmText: 'Улучшить',
+    onConfirm: () => {
+      if (!canAfford(cost)) { toast('Недостаточно ресурсов', 'err'); return; }
+      state.money -= cost.money;
+      state.wood -= cost.wood;
+      b.level = lvl + 1;
+      b.group.scale.setScalar(1 + (b.level - 1) * 0.1);
+      toast(`⬆️ ${b.name} → уровень ${b.level}`, 'ok');
+    }
+  });
+}
+
+function rotateBuilding(b, delta) {
+  b.rotation = (b.rotation || 0) + delta;
+  b.group.rotation.y = b.rotation;
+  toast(`🔄 ${b.name} повёрнут`, '');
+}
+
+function confirmDelete(b) {
+  const refundMoney = Math.floor((b.def.cost.money || 0) * 0.5);
+  const refundWood = Math.floor((b.def.cost.wood || 0) * 0.5);
+  showConfirm({
+    title: `Удалить ${b.name}?`,
+    body: `Объект будет снесён.<br>
+      <span class="cost">Возврат: ${costString({ money: refundMoney, wood: refundWood })}</span>`,
+    confirmText: 'Удалить',
+    danger: true,
+    onConfirm: () => {
+      state.villagers.forEach(v => {
+        if (v.home === b) { v.home = null; v.target = null; v.behaviorState = 'idle'; }
+        if (v.workplace === b) { v.workplace = null; v.target = null; v.behaviorState = 'idle'; }
+      });
+      state.money += refundMoney;
+      state.wood += refundWood;
+      scene.remove(b.group);
+      b.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+      const i = state.buildings.indexOf(b);
+      if (i >= 0) state.buildings.splice(i, 1);
+      toast(`Снесено: +${refundMoney}💰 +${refundWood}🪵`, 'ok');
+    }
+  });
+}
+
+/* =========================================================
+   15. МЫШЬ
+   ========================================================= */
+let downInfo = null;
+let draggingVillager = null;
+const dragOffset = new THREE.Vector3();
+let dragMoved = false;
+
+function updatePtr(e) {
+  ptr.x = (e.clientX / window.innerWidth) * 2 - 1;
+  ptr.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  ptrValid = true;
+}
+
+renderer.domElement.addEventListener('pointerdown', e => {
+  updatePtr(e);
+  downInfo = { x: e.clientX, y: e.clientY, button: e.button };
+  dragMoved = false;
+
+  if (e.button === 0 && !ghostMode && !demolishMode) {
+    raycaster.setFromCamera(ptr, camera);
+    const vHits = raycaster.intersectObjects(state.villagers.map(v => v.group), true);
+    if (vHits.length) {
+      const v = findVillager(vHits[0].object);
+      if (v) {
+        const gHits = raycaster.intersectObject(ground);
+        if (gHits.length) {
+          draggingVillager = v;
+          dragOffset.set(
+            v.group.position.x - gHits[0].point.x, 0,
+            v.group.position.z - gHits[0].point.z
+          );
+          v.target = null;
+          v.waitTimer = 0;
+          v.group.position.y = 0.4;
+        }
+      }
+    }
+  }
+});
+
+window.addEventListener('pointermove', e => {
+  updatePtr(e);
+  if (draggingVillager) {
+    raycaster.setFromCamera(ptr, camera);
+    const gHits = raycaster.intersectObject(ground);
+    if (gHits.length) {
+      const p = gHits[0].point;
+      let nx = p.x + dragOffset.x;
+      let nz = p.z + dragOffset.z;
+      nx = Math.max(-BOUND + 1, Math.min(BOUND - 1, nx));
+      nz = Math.max(-BOUND + 1, Math.min(BOUND - 1, nz));
+      draggingVillager.group.position.x = nx;
+      draggingVillager.group.position.z = nz;
+      dragMoved = true;
+    }
+  }
+});
+
+window.addEventListener('pointerup', e => {
+  if (draggingVillager) {
+    const v = draggingVillager;
+    v.group.position.y = 0;
+    v.x = v.group.position.x;
+    v.z = v.group.position.z;
+    v.waitTimer = 0.5;
+    v.behaviorState = 'idle';
+    draggingVillager = null;
+    if (dragMoved) {
+      toast(`${v.name} перемещён(а)`, '');
+      downInfo = null;
+      return;
+    }
+  }
+
+  if (!downInfo) return;
+  const moved = Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y);
+  const wasLeft = downInfo.button === 0 && e.button === 0;
+  const wasRight = downInfo.button === 2 && e.button === 2;
+  downInfo = null;
+  if (moved > 6) return;
+
+  if (wasLeft) handleLeftClick(e);
+  else if (wasRight) handleRightClick(e);
+});
+
+function handleLeftClick(e) {
+  closePlusMenu();
+
+  if (demolishMode) {
+    raycaster.setFromCamera(ptr, camera);
+    const hits = raycaster.intersectObjects(state.buildings.map(b => b.group), true);
+    if (hits.length) {
+      const b = findBuilding(hits[0].object);
+      if (b) confirmDelete(b);
+    }
+    return;
+  }
+
+  if (ghostMode === 'build') {
+    raycaster.setFromCamera(ptr, camera);
+    const hits = raycaster.intersectObject(ground);
+    if (!hits.length) return;
+    const p = hits[0].point;
+    const x = Math.round(p.x * 2) / 2;
+    const z = Math.round(p.z * 2) / 2;
+    const def = BUILDINGS[ghostType];
+    if (!canAfford(def.cost)) { toast('Недостаточно ресурсов', 'err'); cancelPlacement(); return; }
+    if (!isValidPlacement(ghostType, x, z)) { toast('Здесь нельзя строить', 'err'); return; }
+    state.money -= def.cost.money || 0;
+    state.wood -= def.cost.wood || 0;
+    const b = addBuilding(ghostType, x, z, 1, ghostRotation);
+    toast(`${def.icon} ${b.name} построен`, 'ok');
+    cancelPlacement();
+    return;
+  }
+
+  if (ghostMode === 'move' && ghostBuilding) {
+    raycaster.setFromCamera(ptr, camera);
+    const hits = raycaster.intersectObject(ground);
+    if (!hits.length) return;
+    const p = hits[0].point;
+    const x = Math.round(p.x * 2) / 2;
+    const z = Math.round(p.z * 2) / 2;
+    if (!isValidPlacement(ghostBuilding.type, x, z, ghostBuilding)) {
+      toast('Здесь нельзя разместить', 'err'); return;
+    }
+    ghostBuilding.x = x;
+    ghostBuilding.z = z;
+    ghostBuilding.rotation = ghostRotation;
+    ghostBuilding.group.position.set(x, 0, z);
+    ghostBuilding.group.rotation.y = ghostRotation;
+    ghostBuilding.group.visible = true;
+    toast('↔️ Перемещено', 'ok');
+    cancelPlacement();
+    return;
+  }
+}
+
+function handleRightClick(e) {
+  e.preventDefault();
+  closePlusMenu();
+
+  if (ghostMode || demolishMode) { cancelPlacement(); return; }
+
+  raycaster.setFromCamera(ptr, camera);
+
+  const vHits = raycaster.intersectObjects(state.villagers.map(v => v.group), true);
+  if (vHits.length) {
+    const v = findVillager(vHits[0].object);
+    if (v) { openVillagerContextMenu(e.clientX, e.clientY, v); return; }
+  }
+
+  const hits = raycaster.intersectObjects(state.buildings.map(b => b.group), true);
+  if (hits.length) {
+    const b = findBuilding(hits[0].object);
+    if (b) { openBuildingContextMenu(e.clientX, e.clientY, b); return; }
+  }
+  closeContextMenu();
+}
+
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+
+window.addEventListener('pointerdown', e => {
+  if (el.ctxMenu.classList.contains('open') && !el.ctxMenu.contains(e.target)) closeContextMenu();
+  if (el.plusMenu.classList.contains('open') &&
+      !el.plusMenu.contains(e.target) &&
+      !document.getElementById('plus-btn').contains(e.target)) {
+    closePlusMenu();
+  }
+}, true);
+
+/* =========================================================
+   16. ЭКОНОМИКА
+   ========================================================= */
+function economyTick(dt) {
+  const counts = {};
+  for (const b of state.buildings) counts[b.type] = (counts[b.type] || 0) + 1;
+
+  state.capFood = 200 + 200 * (counts.warehouse || 0);
+  state.capWood = 100 + 150 * (counts.warehouse || 0);
+
+  const housing = state.buildings.reduce((s, b) => s + (b.def.capacity || 0) * (b.level || 1), 0);
+  state.housing = housing;
+
+  let jobsTotal = 0;
+  for (const b of state.buildings) jobsTotal += (b.def.jobs || 0) * (b.level || 1);
+  let jobsFilled = 0;
+  for (const v of state.villagers) if (v.workplace) jobsFilled++;
+  state.jobsTotal = jobsTotal;
+  state.jobsFilled = Math.min(jobsFilled, jobsTotal);
+
+  const now = performance.now() / 1000;
+  let foodProd = 0, woodProd = 0;
+  for (const b of state.buildings) {
+    const workersHere = state.villagers.filter(v => v.workplace === b).length;
+    const slots = (b.def.jobs || 0) * (b.level || 1);
+    if (slots === 0) continue;
+    let eff = Math.min(1, workersHere / slots);
+    if (b.frightenedUntil > now) eff *= 0.3;
+    const lvl = b.level || 1;
+    if (b.def.food) foodProd += b.def.food * eff * lvl;
+    if (b.def.wood) woodProd += b.def.wood * eff * lvl;
+  }
+
+  const foodUse = state.villagers.length * 0.06;
+  state.food += (foodProd - foodUse) * dt;
+  if (state.food < 0) state.food = 0;
+  if (state.food > state.capFood) state.food = state.capFood;
+
+  state.wood += woodProd * dt;
+  if (state.wood > state.capWood) state.wood = state.capWood;
+
+  state.foodRate = foodProd - foodUse;
+  state.woodRate = woodProd;
+
+  let income = 0;
+  if (state.food > 0 && state.villagers.length > 0) {
+    const tax = state.villagers.length * 0.8;
+    state.money += tax * dt;
+    income += tax;
+  }
+
+  const marketWorkers = state.villagers.filter(v => v.workplace && v.workplace.type === 'market').length;
+  if (marketWorkers > 0) {
+    const foodSurplus = Math.max(0, state.food - 100);
+    const woodSurplus = Math.max(0, state.wood - 60);
+    const sellF = Math.min(foodSurplus, marketWorkers * 3.0 * dt);
+    const sellW = Math.min(woodSurplus, marketWorkers * 0.8 * dt);
+    state.food -= sellF;
+    state.wood -= sellW;
+    const gained = sellF * 4 + sellW * 10;
+    state.money += gained;
+    income += gained / Math.max(dt, 1e-6);
+  }
+
+  state.income += (income - state.income) * Math.min(1, dt * 3);
+
+  state.nextAnimalSpawn -= dt;
+  if (state.nextAnimalSpawn <= 0) {
+    const spawned = spawnAnimal();
+    state.nextAnimalSpawn = spawned ? (180 + Math.random() * 300) : 60;
+  }
+}
+
+/* =========================================================
+   17. UI ОБНОВЛЕНИЕ
+   ========================================================= */
+let uiAcc = 0;
+function updateUI(dt) {
+  uiAcc += dt;
+  if (uiAcc < 0.08) return;
+  uiAcc = 0;
+
+  el.money.textContent = Math.floor(state.money).toLocaleString('ru-RU');
+  el.food.textContent = `${Math.floor(state.food)}/${state.capFood}`;
+  el.wood.textContent = `${Math.floor(state.wood)}/${state.capWood}`;
+  el.pop.textContent = `${state.villagers.length}/${state.housing}`;
+  el.jobs.textContent = `${state.jobsFilled}/${state.jobsTotal}`;
+  el.sVillagers.textContent = state.villagers.length;
+
+  el.sFood.textContent = signed(state.foodRate) + '/с';
+  el.sFood.className = state.foodRate >= 0 ? 'pos' : 'neg';
+  el.sWood.textContent = signed(state.woodRate) + '/с';
+  el.sWood.className = state.woodRate >= 0 ? 'pos' : 'neg';
+  el.sIncome.textContent = signed(state.income) + '/с';
+  el.sIncome.className = state.income >= 0 ? 'pos' : 'neg';
+  el.sCount.textContent = state.buildings.length;
+
+  document.getElementById('cnt-villagers').textContent = state.villagers.length;
+  document.getElementById('cnt-buildings').textContent = state.buildings.length;
+}
+
+/* =========================================================
+   18. КЛАВИАТУРА
+   ========================================================= */
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Escape') { cancelPlacement(); closePlusMenu(); closeContextMenu(); }
+  if (e.code === 'KeyQ' && ghost) { ghostRotation += Math.PI / 4; ghost.rotation.y = ghostRotation; }
+  if (e.code === 'KeyE' && ghost) { ghostRotation -= Math.PI / 4; ghost.rotation.y = ghostRotation; }
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+const _fwd = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _move = new THREE.Vector3();
+const UP = new THREE.Vector3(0, 1, 0);
+
+function keyboardPan(dt) {
+  camera.getWorldDirection(_fwd);
+  _fwd.y = 0;
+  if (_fwd.lengthSq() < 1e-6) return;
+  _fwd.normalize();
+  _right.crossVectors(_fwd, UP).normalize();
+
+  _move.set(0, 0, 0);
+  if (keys.KeyW || keys.ArrowUp) _move.add(_fwd);
+  if (keys.KeyS || keys.ArrowDown) _move.sub(_fwd);
+  if (keys.KeyD || keys.ArrowRight) _move.add(_right);
+  if (keys.KeyA || keys.ArrowLeft) _move.sub(_right);
+  if (_move.lengthSq() === 0) return;
+
+  const speed = (keys.ShiftLeft || keys.ShiftRight ? 46 : 22) * dt;
+  _move.normalize().multiplyScalar(speed);
+  camera.position.add(_move);
+  controls.target.add(_move);
+}
+
+/* =========================================================
+   19. GHOST
+   ========================================================= */
+function updateGhost() {
+  if (!ghost || !ptrValid) return;
+  raycaster.setFromCamera(ptr, camera);
+  const hits = raycaster.intersectObject(ground);
+  if (!hits.length) { ghost.visible = false; return; }
+
+  const p = hits[0].point;
+  const x = Math.round(p.x * 2) / 2;
+  const z = Math.round(p.z * 2) / 2;
+  ghost.position.set(x, 0, z);
+  ghost.visible = true;
+
+  let ok = true;
+  if (ghostMode === 'build') ok = isValidPlacement(ghostType, x, z) && canAfford(BUILDINGS[ghostType].cost);
+  else if (ghostMode === 'move') ok = isValidPlacement(ghostBuilding.type, x, z, ghostBuilding);
+  ghostMat.color.setHex(ok ? 0x55ff99 : 0xff5555);
+}
+
+/* =========================================================
+   20. ЗАПУСК
+   ========================================================= */
+buildPlusMenu();
+
+addBuilding('house', 0, 0, 1, 0);
+
+setTimeout(() => {
+  const v1 = spawnVillager('man', 4, 4);
+  autoAssign(v1);
+  const v2 = spawnVillager('woman', -4, 4);
+  autoAssign(v2);
+}, 200);
+
+setTimeout(() => toast('👋 Добро пожаловать в деревню!', 'ok'), 400);
+setTimeout(() => toast('Кнопка ➕ — магазин зданий и жителей', ''), 1900);
+setTimeout(() => toast('ПКМ по объекту или записи в списке — меню', ''), 3400);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+let last = performance.now();
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((now - last) / 1000, 0.1);
+  last = now;
+
+  keyboardPan(dt);
+  controls.update();
+  economyTick(dt);
+  updateVillagers(dt);
+  updateAnimals(dt);
+  updateGhost();
+  updateUI(dt);
+
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
