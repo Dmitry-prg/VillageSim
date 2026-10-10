@@ -2,55 +2,126 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Деревня 3D — симулятор</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
-    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;user-select:none}
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;user-select:none;
+    -webkit-tap-highlight-color:transparent;touch-action:none}
   canvas{display:block}
-
   #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
-  .panel{
-    background:rgba(14,20,27,.85);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-    border:1px solid rgba(255,255,255,.10);
-    border-radius:14px;color:#e8f1f8;
-    box-shadow:0 8px 28px rgba(0,0,0,.35)
+  #timers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .v-timer{
+    position:absolute;transform:translate(-50%,-100%);
+    color:#fff;font-weight:700;font-size:13px;
+    text-shadow:0 0 4px #000,0 0 8px #000,0 1px 2px #000;
+    white-space:nowrap;padding:2px 8px;
+    background:rgba(0,0,0,.5);border-radius:8px;
+    border:1px solid rgba(255,255,255,.22)
   }
 
-  #resbar{
-    position:absolute;top:14px;left:14px;
-    display:flex;gap:6px;padding:9px 12px;flex-wrap:wrap;max-width:42vw
+  /* ==================== ШАПКА ==================== */
+  #topbar{
+    position:fixed;top:10px;left:10px;right:10px;
+    background:rgba(14,20,27,.88);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:16px;color:#e8f1f8;
+    box-shadow:0 10px 32px rgba(0,0,0,.45);
+    pointer-events:auto;
+    padding:10px 14px;
+    display:grid;
+    grid-template-columns:1fr auto auto auto;
+    grid-template-areas:"resources objects economy actions";
+    gap:14px;align-items:center;
+    z-index:20
   }
-  .res{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;
-    padding:3px 9px;border-radius:9px;background:rgba(255,255,255,.06)}
-  .res .ico{font-size:15px}
+  .tb-section{display:flex;gap:8px;align-items:center}
+  .tb-resources{grid-area:resources;flex-wrap:wrap;gap:6px}
+  .tb-objects{grid-area:objects;flex-wrap:wrap;gap:6px}
+  .tb-economy{
+    grid-area:economy;display:flex;flex-direction:column;gap:3px;
+    padding-left:14px;border-left:1px solid rgba(255,255,255,.09);
+    font-size:12px;min-width:110px
+  }
+  .tb-actions{
+    grid-area:actions;display:flex;gap:6px;align-items:center;
+    padding-left:14px;border-left:1px solid rgba(255,255,255,.09)
+  }
+  /* Компактная полоса (мобильные) */
+  .tb-compact{display:none;gap:6px;align-items:center;flex-wrap:wrap}
 
-  #listbtns{
-    position:absolute;top:64px;left:14px;
-    display:flex;gap:8px;pointer-events:auto
+  /* Ресурсы */
+  .res{
+    display:flex;align-items:center;gap:5px;
+    font-size:13px;font-weight:600;
+    padding:4px 9px;border-radius:9px;
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.06);
+    white-space:nowrap
   }
-  .listbtn{
-    padding:9px 14px;border-radius:11px;cursor:pointer;font-family:inherit;
-    font-size:13px;font-weight:700;color:#e8f1f8;
-    background:rgba(14,22,30,.88);border:1.5px solid rgba(255,255,255,.14);
-    transition:transform .13s,border-color .13s;
-    display:flex;align-items:center;gap:7px
-  }
-  .listbtn:hover{transform:translateY(-2px);border-color:rgba(120,225,165,.7)}
-  .listbtn .cnt{background:rgba(255,255,255,.12);padding:1px 7px;border-radius:6px;font-size:11px}
+  .res .ico{font-size:14px;line-height:1}
+  .res b{font-weight:700}
 
-  #stats{
-    position:absolute;top:14px;right:14px;padding:12px 14px;width:206px;font-size:13px
+  /* Экономика */
+  .stat{
+    display:flex;justify-content:space-between;gap:10px;
+    align-items:center;color:#b9cad9
   }
-  .stitle{font-weight:700;margin-bottom:9px;font-size:13px;color:#9fd8b4;
-    letter-spacing:.4px;text-transform:uppercase}
-  .srow{display:flex;justify-content:space-between;padding:3px 0;color:#b9cad9}
-  .srow b{color:#fff;font-weight:600}
+  .stat .lbl{font-size:12px;opacity:.9}
+  .stat b{color:#fff;font-weight:700;font-size:12px}
   .pos{color:#5ee08a !important}
   .neg{color:#ff7a7a !important}
 
+  /* Кнопки списков */
+  .listbtn{
+    padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;
+    font-size:12.5px;font-weight:700;color:#e8f1f8;
+    background:rgba(255,255,255,.06);
+    border:1.5px solid rgba(255,255,255,.11);
+    transition:transform .12s,border-color .12s,background .12s;
+    display:flex;align-items:center;gap:6px;white-space:nowrap
+  }
+  .listbtn:hover{transform:translateY(-2px);
+    border-color:rgba(120,225,165,.7);background:rgba(74,222,128,.08)}
+  .listbtn .cnt{
+    background:rgba(255,255,255,.14);padding:1px 6px;
+    border-radius:5px;font-size:10.5px;font-weight:700
+  }
+
+  /* Иконки-кнопки в шапке */
+  .icon-btn{
+    width:38px;height:38px;padding:0;border-radius:10px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.06);
+    border:1.5px solid rgba(255,255,255,.11);
+    color:#e8f1f8;font-size:18px;
+    transition:transform .12s,border-color .12s,background .12s;
+    font-family:inherit
+  }
+  .icon-btn:hover{transform:translateY(-2px);
+    border-color:rgba(120,225,165,.7);background:rgba(74,222,128,.08)}
+  .icon-btn.danger:hover{border-color:rgba(255,120,120,.75);
+    background:rgba(255,80,80,.12)}
+
+  /* Компактные кнопки на мобилке */
+  .compact-btn{
+    display:flex;align-items:center;gap:5px;
+    padding:7px 11px;border-radius:10px;cursor:pointer;
+    background:rgba(255,255,255,.06);
+    border:1.5px solid rgba(255,255,255,.11);
+    color:#e8f1f8;font-family:inherit;font-size:13px;font-weight:700;
+    white-space:nowrap;
+    transition:transform .12s,border-color .12s,background .12s
+  }
+  .compact-btn:hover{transform:translateY(-2px);
+    border-color:rgba(120,225,165,.7);background:rgba(74,222,128,.08)}
+  .compact-btn .cm-ico{font-size:14px}
+  .compact-btn .cm-val{color:#fff;font-weight:700}
+  .compact-btn .cm-sep{opacity:.35}
+
+  /* Нижние кнопки */
   #topbtns{
     position:fixed;bottom:14px;right:14px;
     display:flex;gap:8px;pointer-events:auto;z-index:25
@@ -58,9 +129,11 @@
   .tbtn{
     padding:11px 20px;border-radius:12px;cursor:pointer;font-family:inherit;
     font-size:14px;font-weight:700;color:#e8f1f8;
-    background:rgba(14,22,30,.9);border:1.5px solid rgba(255,255,255,.14);
+    background:rgba(14,22,30,.92);
+    border:1.5px solid rgba(255,255,255,.14);
     transition:transform .13s,border-color .13s,background .13s,box-shadow .13s;
-    display:flex;align-items:center;gap:7px
+    display:flex;align-items:center;gap:7px;
+    box-shadow:0 6px 18px rgba(0,0,0,.35)
   }
   .tbtn:hover{transform:translateY(-2px);border-color:rgba(120,225,165,.75)}
   .tbtn.primary{background:linear-gradient(135deg,#2f9e5c,#3fb56c);
@@ -68,12 +141,13 @@
   .tbtn.primary:hover{box-shadow:0 0 22px rgba(74,222,128,.5)}
   .tbtn.active{border-color:#4ade80;box-shadow:0 0 20px rgba(74,222,128,.4)}
 
+  /* ==================== Плюс-меню ==================== */
   #plus-menu{
     position:fixed;bottom:70px;right:14px;
-    width:min(600px,92vw);max-height:68vh;overflow-y:auto;
-    background:rgba(14,20,27,.96);backdrop-filter:blur(14px);
-    border:1px solid rgba(255,255,255,.13);border-radius:16px;
-    box-shadow:0 18px 48px rgba(0,0,0,.55);
+    width:min(660px,94vw);max-height:70vh;overflow-y:auto;
+    background:rgba(14,20,27,.97);backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.14);border-radius:16px;
+    box-shadow:0 18px 48px rgba(0,0,0,.6);
     padding:14px;pointer-events:auto;z-index:30;
     opacity:0;visibility:hidden;transform:translateY(8px);
     transition:opacity .18s,visibility .18s,transform .18s
@@ -81,38 +155,39 @@
   #plus-menu.open{opacity:1;visibility:visible;transform:translateY(0)}
   #plus-menu::-webkit-scrollbar{width:6px}
   #plus-menu::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
-
-  .pm-section{margin-bottom:14px}
-  .pm-section:last-child{margin-bottom:0}
+  .pm-section{margin-bottom:14px}.pm-section:last-child{margin-bottom:0}
   .pm-head{
     font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
     color:#9fd8b4;margin-bottom:8px;padding-left:4px
   }
-  .pm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:7px}
+  .pm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:7px}
   .pm-item{
     display:flex;flex-direction:column;gap:3px;text-align:left;cursor:pointer;
     padding:10px 11px;border-radius:11px;font-family:inherit;color:#dfeaf2;
     background:rgba(255,255,255,.045);border:1.5px solid rgba(255,255,255,.08);
     transition:transform .12s,border-color .12s,background .12s
   }
-  .pm-item:hover{transform:translateY(-2px);border-color:rgba(120,225,165,.7);
-    background:rgba(74,222,128,.09)}
+  .pm-item:hover{transform:translateY(-2px);
+    border-color:rgba(120,225,165,.7);background:rgba(74,222,128,.09)}
   .pm-item .pm-name{font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px}
   .pm-item .pm-cost{font-size:11px;color:#93a8bb}
   .pm-item .pm-info{font-size:10.5px;color:#6f8498;line-height:1.3}
 
+  /* ==================== Контекстное меню ==================== */
   #context-menu{
     position:fixed;min-width:230px;padding:6px;
-    background:rgba(14,20,27,.97);backdrop-filter:blur(14px);
-    border:1px solid rgba(255,255,255,.15);border-radius:12px;
-    box-shadow:0 14px 40px rgba(0,0,0,.6);
-    pointer-events:auto;z-index:80;display:none
+    background:rgba(14,20,27,.98);backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.16);border-radius:12px;
+    box-shadow:0 14px 40px rgba(0,0,0,.65);
+    pointer-events:auto;z-index:100;display:none
   }
   #context-menu.open{display:block}
   .ctx-title{
     font-size:11.5px;color:#9fd8b4;font-weight:800;letter-spacing:.4px;
-    text-transform:uppercase;padding:8px 12px 6px;border-bottom:1px solid rgba(255,255,255,.08);
-    margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;gap:10px
+    text-transform:uppercase;padding:8px 12px 6px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    margin-bottom:4px;display:flex;justify-content:space-between;
+    align-items:center;gap:10px
   }
   .ctx-title .lvl{color:#ffd66b;font-size:11px}
   .ctx-btn{
@@ -121,23 +196,23 @@
     color:#dfeaf2;font-family:inherit;font-size:13px;font-weight:600;
     text-align:left;transition:background .12s
   }
-  .ctx-btn:hover{background:rgba(255,255,255,.08)}
+  .ctx-btn:hover:not(:disabled){background:rgba(255,255,255,.09)}
   .ctx-btn.danger{color:#ff9a9a}
-  .ctx-btn.danger:hover{background:rgba(255,80,80,.14)}
+  .ctx-btn.danger:hover:not(:disabled){background:rgba(255,80,80,.16)}
   .ctx-btn:disabled{opacity:.4;cursor:not-allowed}
-  .ctx-btn:disabled:hover{background:transparent}
   .ctx-btn .sub{color:#7d92a5;font-weight:400;font-size:11px;margin-left:auto}
 
+  /* ==================== Модалки ==================== */
   .modal-overlay{
-    position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);
-    display:flex;align-items:center;justify-content:center;z-index:60;
+    position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;z-index:200;
     animation:fadeIn .15s ease
   }
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   .modal{
     width:min(440px,92vw);background:rgba(20,28,37,.98);
     border:1px solid rgba(255,255,255,.15);border-radius:18px;
-    box-shadow:0 24px 64px rgba(0,0,0,.7);padding:22px 24px;
+    box-shadow:0 24px 64px rgba(0,0,0,.75);padding:22px 24px;
     color:#e8f1f8;animation:popIn .2s ease;
     max-height:80vh;display:flex;flex-direction:column
   }
@@ -150,7 +225,7 @@
   .mbtn{
     padding:10px 20px;border-radius:10px;font-family:inherit;font-size:14px;
     font-weight:700;cursor:pointer;border:1.5px solid transparent;
-    transition:transform .12s,filter .12s
+    transition:transform .12s,filter .12s;position:relative;z-index:5
   }
   .mbtn:hover{transform:translateY(-1px)}
   .mbtn.cancel{background:rgba(255,255,255,.07);color:#c0cfdd;
@@ -159,7 +234,6 @@
     border-color:rgba(120,255,180,.5)}
   .mbtn.danger{background:linear-gradient(135deg,#c43b3b,#e05050);color:#fff;
     border-color:rgba(255,140,140,.5)}
-
   .name-input{
     width:100%;padding:12px 14px;border-radius:10px;font-family:inherit;
     font-size:15px;background:rgba(255,255,255,.06);color:#fff;
@@ -168,7 +242,6 @@
   }
   .name-input:focus{border-color:#4ade80}
   .name-error{color:#ff9090;font-size:12.5px;margin-top:6px;min-height:16px}
-
   .picker-list{
     display:flex;flex-direction:column;gap:6px;max-height:52vh;
     overflow-y:auto;margin-bottom:16px
@@ -188,17 +261,20 @@
   .picker-item:disabled{opacity:.4;cursor:not-allowed}
   .picker-item .sub{color:#7d92a5;font-size:12px;font-weight:400}
   .picker-item .hunger-bar{
-    width:56px;height:6px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden
+    width:56px;height:6px;background:rgba(255,255,255,.12);
+    border-radius:3px;overflow:hidden
   }
   .picker-item .hunger-bar span{
     display:block;height:100%;background:#5ee08a;border-radius:3px
   }
-
-  #toasts{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
-    display:flex;flex-direction:column;gap:7px;align-items:center;pointer-events:none}
+  #toasts{
+    position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
+    display:flex;flex-direction:column;gap:7px;align-items:center;
+    pointer-events:none;z-index:150;max-width:90vw
+  }
   .toast{
     padding:9px 18px;border-radius:11px;font-size:13.5px;font-weight:600;
-    background:rgba(14,22,30,.94);border:1px solid rgba(255,255,255,.13);
+    background:rgba(14,22,30,.95);border:1px solid rgba(255,255,255,.13);
     color:#e8f1f8;animation:pop .25s ease;white-space:nowrap;
     box-shadow:0 6px 22px rgba(0,0,0,.4)
   }
@@ -208,51 +284,140 @@
   .toast.out{opacity:0;transform:translateY(-10px);transition:.35s}
   @keyframes pop{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:none}}
 
-  .help-content{font-size:13.5px;line-height:1.9;color:#b9cad9}
+  .help-content{font-size:14px;line-height:2.1;color:#b9cad9}
   .help-content b{color:#e8f1f8}
-  .help-content kbd{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
-    border-radius:5px;padding:1px 7px;font-family:inherit;font-size:12px;color:#e2eef8}
-  .help-content .row{display:flex;gap:10px;align-items:baseline;padding:2px 0}
-  .help-content .row span:first-child{min-width:160px;color:#8fa5b8}
+  .help-content kbd{
+    background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+    border-radius:5px;padding:1px 8px;font-family:inherit;font-size:12px;color:#e2eef8
+  }
+  .help-content .row{display:flex;gap:12px;align-items:baseline;padding:3px 0}
+  .help-content .row span:first-child{min-width:180px;color:#8fa5b8}
 
-  @media(max-width:820px){
-    #stats{display:none}
-    #resbar{max-width:60vw}
-    .tbtn{padding:8px 12px;font-size:12.5px}
+  /* Сетка ресурсов в мобильной модалке */
+  .cm-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px
+  }
+  .cm-cell{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 12px;border-radius:10px;
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.08);
+    font-size:13.5px
+  }
+  .cm-cell .cm-ico{font-size:18px}
+  .cm-cell .cm-lbl{color:#93a8bb;font-size:12px;display:block}
+  .cm-cell b{color:#fff;font-size:15px;font-weight:700;display:block;margin-top:2px}
+
+  /* ==================== Адаптив ==================== */
+  @media (max-width: 1100px){
+    #topbar{
+      grid-template-columns:1fr auto;
+      grid-template-areas:
+        "resources actions"
+        "objects   actions"
+        "economy   actions";
+      gap:8px 14px
+    }
+    .tb-actions{padding-left:12px;align-self:center}
+    .res{font-size:12px;padding:3px 8px}
+    .listbtn{font-size:12px;padding:6px 10px}
+  }
+
+  /* ==================== Мобильные устройства (портрет) ==================== */
+  @media (max-width: 820px), (orientation: landscape) and (max-height: 500px){
+    #topbar{
+      top:6px;left:6px;right:6px;
+      padding:8px 10px;border-radius:12px;
+      grid-template-columns:1fr auto;
+      grid-template-areas:"compact actions";
+      gap:8px
+    }
+    .tb-resources,.tb-objects,.tb-economy{display:none}
+    .tb-compact{display:flex}
+    .tb-actions{padding-left:0;border-left:none;gap:5px}
+    .icon-btn{width:36px;height:36px;font-size:17px;border-radius:9px}
+    .compact-btn{padding:6px 9px;font-size:12px;gap:4px}
+    .compact-btn .cm-ico{font-size:13px}
+    #topbtns{bottom:10px;right:10px;gap:6px}
+    .tbtn{padding:9px 14px;font-size:12.5px}
+    #plus-menu{bottom:60px;right:10px;width:min(560px,96vw);padding:11px}
+    .pm-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
+    .pm-item{padding:8px 9px}
+    .pm-item .pm-name{font-size:12px}
+    .pm-item .pm-info{font-size:10px}
+  }
+
+  /* Очень узкий экран */
+  @media (orientation: landscape) and (max-height: 420px){
+    #topbar{top:4px;left:4px;right:4px;padding:6px 8px}
+    .compact-btn{padding:5px 8px;font-size:11px}
+    .icon-btn{width:32px;height:32px;font-size:15px}
+    #topbtns .tbtn{padding:7px 11px;font-size:11.5px}
+    #plus-menu{bottom:48px;padding:8px}
   }
 </style>
 </head>
 <body>
 <div id="app"></div>
-
 <div id="hud">
-  <div class="panel" id="resbar">
-    <div class="res"><span class="ico">💰</span><span id="r-money">0</span></div>
-    <div class="res"><span class="ico">🌾</span><span id="r-food">0/0</span></div>
-    <div class="res"><span class="ico">🪵</span><span id="r-wood">0/0</span></div>
-    <div class="res"><span class="ico">👥</span><span id="r-pop">0/0</span></div>
-    <div class="res"><span class="ico">👷</span><span id="r-jobs">0/0</span></div>
-  </div>
+  <div id="timers"></div>
+  <div id="topbar">
+    <!-- Компактный режим (мобильные) -->
+    <div class="tb-compact">
+      <button class="compact-btn" id="compact-res-btn" title="Ресурсы">
+        <span class="cm-ico">💰</span><span class="cm-val" id="c-money">0</span>
+        <span class="cm-sep">·</span>
+        <span class="cm-ico">🌾</span><span class="cm-val" id="c-food">0</span>
+        <span class="cm-sep">·</span>
+        <span class="cm-ico">🪵</span><span class="cm-val" id="c-wood">0</span>
+      </button>
+      <button class="compact-btn" id="compact-obj-btn" title="Объекты">
+        <span class="cm-ico">👥</span><span class="cm-val" id="c-villagers">0</span>
+        <span class="cm-sep">·</span>
+        <span class="cm-ico">🏠</span><span class="cm-val" id="c-buildings">0</span>
+        <span class="cm-sep">·</span>
+        <span class="cm-ico">🚧</span><span class="cm-val" id="c-env">0</span>
+      </button>
+      <button class="compact-btn" id="compact-econ-btn" title="Экономика">
+        <span class="cm-ico">📊</span>
+      </button>
+    </div>
 
-  <div id="listbtns">
-    <button class="listbtn" id="list-villagers">👥 Жители <span class="cnt" id="cnt-villagers">0</span></button>
-    <button class="listbtn" id="list-buildings">🏠 Здания <span class="cnt" id="cnt-buildings">0</span></button>
-  </div>
+    <!-- Ресурсы (десктоп) -->
+    <div class="tb-section tb-resources">
+      <div class="res"><span class="ico">💰</span><b id="r-money">0</b></div>
+      <div class="res"><span class="ico">🌾</span><b id="r-food">0/0</b></div>
+      <div class="res"><span class="ico">🪵</span><b id="r-wood">0/0</b></div>
+      <div class="res"><span class="ico">👥</span><b id="r-pop">0/0</b></div>
+      <div class="res"><span class="ico">🐔</span><b id="r-chickens">0</b></div>
+      <div class="res"><span class="ico">👷</span><b id="r-jobs">0/0</b></div>
+    </div>
 
-  <div class="panel" id="stats">
-    <div class="stitle">📊 Экономика</div>
-    <div class="srow"><span>Еда</span><b id="s-food">+0.0/с</b></div>
-    <div class="srow"><span>Дерево</span><b id="s-wood">+0.0/с</b></div>
-    <div class="srow"><span>Доход</span><b id="s-income">+0.0/с</b></div>
-    <div class="srow"><span>Зданий</span><b id="s-count">0</b></div>
-    <div class="srow"><span>Жителей</span><b id="s-villagers">0</b></div>
+    <!-- Объекты (десктоп) -->
+    <div class="tb-section tb-objects">
+      <button class="listbtn" id="list-villagers">👥 Жители <span class="cnt" id="cnt-villagers">0</span></button>
+      <button class="listbtn" id="list-buildings">🏠 Постройки <span class="cnt" id="cnt-buildings">0</span></button>
+      <button class="listbtn" id="list-environment">🚧 Окружение <span class="cnt" id="cnt-environment">0</span></button>
+    </div>
+
+    <!-- Экономика (десктоп) -->
+    <div class="tb-section tb-economy">
+      <div class="stat"><span class="lbl">🌾 Еда</span><b id="s-food">+0.0/с</b></div>
+      <div class="stat"><span class="lbl">🪵 Дерево</span><b id="s-wood">+0.0/с</b></div>
+      <div class="stat"><span class="lbl">💰 Доход</span><b id="s-income">+0.0/с</b></div>
+    </div>
+
+    <!-- Иконки действий -->
+    <div class="tb-actions">
+      <button class="icon-btn" id="help-btn" title="Инструкция">📖</button>
+      <button class="icon-btn" id="save-btn" title="Сохранить прогресс">💾</button>
+      <button class="icon-btn danger" id="clear-btn" title="Очистить прогресс">🗑️</button>
+    </div>
   </div>
 
   <div id="topbtns">
-    <button class="tbtn" id="help-btn">📖 Инструкция</button>
     <button class="tbtn primary" id="plus-btn">➕ Добавить</button>
   </div>
-
   <div id="plus-menu"></div>
   <div id="context-menu"></div>
   <div id="toasts"></div>
@@ -275,17 +440,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
    1. ОПРЕДЕЛЕНИЯ
    ========================================================= */
 const BUILDINGS = {
-  house:     { name: 'Жилой дом',  icon: '🏠', cost: { money: 200, wood: 10 }, info: 'Даёт 4 жителя',          capacity: 4, jobs: 0, radius: 2.8 },
-  coop:      { name: 'Курятник',   icon: '🐔', cost: { money: 100 },           info: '+0.6 еды/с · 1 раб.',    jobs: 1, food: 0.6, radius: 2.3 },
-  farm:      { name: 'Ферма',      icon: '🌾', cost: { money: 280, wood: 15 }, info: '+1.8 еды/с · 2 раб.',    jobs: 2, food: 1.8, radius: 4.4 },
-  sawmill:   { name: 'Лесопилка',  icon: '🪚', cost: { money: 240 },           info: '+0.4 дер./с · 2 раб.',   jobs: 2, wood: 0.4, radius: 2.9 },
-  market:    { name: 'Рынок',      icon: '🏪', cost: { money: 400, wood: 20 }, info: 'Продаёт излишки · 1 раб.', jobs: 1, radius: 2.5 },
-  warehouse: { name: 'Склад',      icon: '📦', cost: { money: 200, wood: 10 }, info: '+200 к лимиту',          jobs: 0, radius: 3.1 },
-  fence:     { name: 'Забор',      icon: '🚧', cost: { money: 10, wood: 2 },   info: 'Секция забора · стыкуется', jobs: 0, radius: 1.2, isFence: true }
+  house:     { name: 'Жилой дом',  icon: '🏠', cost: { money: 200, wood: 12 }, info: 'Ур.1: 2 жителя → Ур.3: 8', capacities: [2, 4, 8], jobs: 0, radius: 2.8 },
+  coop:      { name: 'Курятник',   icon: '🐔', cost: { money: 100, wood: 5 },  info: '+0.5 еды/с · 1 раб.',     jobs: 1, food: 0.5, radius: 2.3 },
+  farm:      { name: 'Ферма',      icon: '🌾', cost: { money: 280, wood: 20 }, info: '+1.4 еды/с · 2 раб.',     jobs: 2, food: 1.4, radius: 4.4 },
+  sawmill:   { name: 'Лесопилка',  icon: '🪚', cost: { money: 220, wood: 8 },  info: '+0.35 дер./с · 2 раб.',   jobs: 2, wood: 0.35, radius: 2.9 },
+  market:    { name: 'Рынок',      icon: '🏪', cost: { money: 150, wood: 10 }, info: '+2.5💰/с и продажа · 1 раб.', jobs: 1, radius: 2.5 },
+  warehouse: { name: 'Склад',      icon: '📦', cost: { money: 180, wood: 15 }, info: '+150 к лимиту',          jobs: 0, radius: 3.1 },
+  pier:      { name: 'Пирс',       icon: '🎣', cost: { money: 80, wood: 6 },   info: 'Место для рыбалки',       jobs: 0, radius: 2.0, needsRiver: true, onWater: true },
+  fence:     { name: 'Забор',      icon: '🚧', cost: { money: 8, wood: 2 },    info: 'Держит хищников',         jobs: 0, radius: 1.2, isFence: true }
 };
 
-const BUILDING_TYPES = ['house', 'coop', 'farm', 'sawmill', 'market', 'warehouse'];
-const ENVIRONMENT_TYPES = ['fence'];
+const BUILDING_CATEGORIES = [
+  { title: '🏠 Здания', types: ['house', 'coop', 'farm', 'sawmill', 'market', 'warehouse', 'pier'] },
+  { title: '🚧 Окружение', types: ['fence'] }
+];
 
 const VILLAGERS = {
   man:   { name: 'Мужчина', icon: '👨', cost: { money: 60 }, info: 'Работящий житель' },
@@ -293,31 +461,55 @@ const VILLAGERS = {
 };
 
 const SHOP_ITEMS = {
-  food: { name: 'Еда',    icon: '🍞', cost: { money: 50 },  info: 'Купить 100 еды',
-          apply: () => { state.food = Math.min(state.capFood, state.food + 100); } },
-  wood: { name: 'Дерево', icon: '🪵', cost: { money: 80 },  info: 'Купить 50 дерева',
-          apply: () => { state.wood = Math.min(state.capWood, state.wood + 50); } }
+  food:    { cat: 'resources', name: 'Еда',    icon: '🍞', cost: { money: 70 },  info: 'Купить 80 еды',
+             apply: () => { state.food = Math.min(state.capFood, state.food + 80); } },
+  wood:    { cat: 'resources', name: 'Дерево', icon: '🪵', cost: { money: 100 }, info: 'Купить 40 дерева',
+             apply: () => { state.wood = Math.min(state.capWood, state.wood + 40); } },
+  axe:     { cat: 'equipment', name: 'Топор',   icon: '🪓', cost: { money: 10, wood: 1 }, info: 'Нужен для рубки леса',
+             apply: () => { state.hasAxe = true; } },
+  fishingrod: { cat: 'equipment', name: 'Удочка с ведром', icon: '🎣', cost: { money: 30 }, info: 'Нужна для рыбалки',
+             apply: () => { state.hasFishingRod = true; } },
+  rifle:   { cat: 'equipment', name: 'Ружьё',   icon: '🔫', cost: { money: 500 }, info: 'Мужчины стреляют (10 м)',
+             apply: () => { state.hasGun = true; } },
+  chicken: { cat: 'livestock', name: 'Курица', icon: '🐔', cost: { money: 40 },  info: 'Добавить в курятник',
+             apply: () => { buyChicken(); } }
+};
+
+const CATEGORIES = {
+  resources: '🍞 Ресурсы',
+  equipment: '🔫 Снаряжение',
+  livestock: '🐔 Живность'
 };
 
 const ANIMAL_TYPES = {
-  fox:  { name: 'Лиса',    icon: '🦊', speed: 2.4, target: 'coop',  needsCoop: true,  weight: 5 },
-  wolf: { name: 'Волк',    icon: '🐺', speed: 2.0, target: 'coop',  needsCoop: true,  weight: 3 },
-  bear: { name: 'Медведь', icon: '🐻', speed: 1.4, target: 'house', needsCoop: false, weight: 1 }
+  fox:  { name: 'Лиса',    icon: '🦊', speed: 2.4, target: 'coop',  needsCoop: true,  weight: 20, hp: 1, reward: 15 },
+  wolf: { name: 'Волк',    icon: '🐺', speed: 2.1, target: 'coop',  needsCoop: true,  weight: 12, hp: 1, reward: 25 },
+  bear: { name: 'Медведь', icon: '🐻', speed: 1.3, target: 'house', needsCoop: false, weight: 0,  hp: 2, reward: 60 }
 };
 
 /* =========================================================
    2. СОСТОЯНИЕ
    ========================================================= */
 const state = {
-  money: 800, food: 200, wood: 50,
+  money: 500, food: 100, wood: 30,
   capFood: 200, capWood: 100,
-  buildings: [], villagers: [], animals: [],
+  buildings: [], villagers: [], animals: [], chickens: [],
   income: 0, foodRate: 0, woodRate: 0,
   jobsTotal: 0, jobsFilled: 0, housing: 4,
-  nextAnimalSpawn: 15,
+  nextAnimalSpawn: 20,
+  nextBearSpawn: 300 + Math.random() * 300,
   buildingCounter: 0,
-  villagerCounter: 0
+  hasGun: false, hasFishingRod: false, hasAxe: false
 };
+
+const SAVE_KEY = 'village3d_save_v1';
+
+const BOUND = 46;
+const RIVER_Z = BOUND - 3;
+const RIVER_HALF_WIDTH = 2.8;
+function riverCenterZ(x) { return RIVER_Z; }
+function isInRiver(x, z) { return Math.abs(z - RIVER_Z) < RIVER_HALF_WIDTH; }
+function riverDistance(x, z) { return Math.abs(z - RIVER_Z) - RIVER_HALF_WIDTH; }
 
 /* =========================================================
    3. СЦЕНА
@@ -345,15 +537,10 @@ controls.dampingFactor = 0.075;
 controls.maxPolarAngle = Math.PI / 2.18;
 controls.minDistance = 8;
 controls.maxDistance = 110;
-// ЛКМ — вращение, ПКМ — перемещение
-controls.mouseButtons = {
-  LEFT: THREE.MOUSE.ROTATE,
-  MIDDLE: THREE.MOUSE.DOLLY,
-  RIGHT: THREE.MOUSE.PAN
-};
+controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: null };
+controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 
 scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x4f7a3a, 1.15));
-
 const sun = new THREE.DirectionalLight(0xfff2d5, 2.3);
 sun.position.set(48, 70, 28);
 sun.castShadow = true;
@@ -385,19 +572,45 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const BOUND = 46;
+let riverMesh = null;
+(function buildRiverMesh() {
+  const halfW = RIVER_HALF_WIDTH;
+  const xMin = -BOUND - 6, xMax = BOUND + 6;
+  const segments = 60;
+  const vertices = [], uvs = [], indices = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const x = xMin + t * (xMax - xMin);
+    vertices.push(x, 0.05, RIVER_Z - halfW);
+    vertices.push(x, 0.05, RIVER_Z + halfW);
+    uvs.push(t * 20, 0); uvs.push(t * 20, 1);
+  }
+  for (let i = 0; i < segments; i++) {
+    const a = i*2, b = i*2+1, c = i*2+2, d = i*2+3;
+    indices.push(a, c, b); indices.push(b, c, d);
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geom.setIndex(indices); geom.computeVertexNormals();
+  riverMesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
+    color: 0x4a90c8, roughness: 0.15, metalness: 0.25,
+    transparent: true, opacity: 0.9, side: THREE.DoubleSide
+  }));
+  riverMesh.receiveShadow = true; scene.add(riverMesh);
+})();
+
 {
   const pts = [
-    new THREE.Vector3(-BOUND, 0.05, -BOUND), new THREE.Vector3( BOUND, 0.05, -BOUND),
-    new THREE.Vector3( BOUND, 0.05,  BOUND), new THREE.Vector3(-BOUND, 0.05,  BOUND),
-    new THREE.Vector3(-BOUND, 0.05, -BOUND)
+    new THREE.Vector3(-BOUND, 0.07, -BOUND), new THREE.Vector3( BOUND, 0.07, -BOUND),
+    new THREE.Vector3( BOUND, 0.07,  BOUND), new THREE.Vector3(-BOUND, 0.07,  BOUND),
+    new THREE.Vector3(-BOUND, 0.07, -BOUND)
   ];
   const line = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(pts),
     new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 1.6, gapSize: 1.1, opacity: 0.35, transparent: true })
   );
-  line.computeLineDistances();
-  scene.add(line);
+  line.computeLineDistances(); scene.add(line);
 }
 
 /* =========================================================
@@ -428,44 +641,123 @@ function ball(p, r, color, x, y, z) {
 /* =========================================================
    5. МОДЕЛИ ЗДАНИЙ
    ========================================================= */
-function makeHouse() {
+function makeHouse(level = 1) {
   const g = new THREE.Group();
-  box(g, 4.4, 3.0, 4.0, 0xf2e3c8, 0, 1.5, 0);
-  cone(g, 3.7, 2.2, 4, 0xb0442f, 0, 4.1, 0);
-  box(g, 1.0, 1.9, 0.16, 0x7a4a25, 0, 0.95, 2.03);
-  box(g, 0.85, 0.85, 0.14, 0x9fd8ff, -1.4, 1.85, 2.03);
-  box(g, 0.85, 0.85, 0.14, 0x9fd8ff, 1.4, 1.85, 2.03);
-  box(g, 0.5, 1.3, 0.5, 0x8d5b4c, 1.2, 4.3, -0.9);
+  const walls = 0xf2e3c8, roof = 0xa03828, doorCol = 0x7a4a25, frame = 0x8a6a4a, glass = 0x9fd8ff;
+  if (level === 1) {
+    box(g, 3.2, 2.2, 3.2, walls, 0, 1.1, 0);
+    box(g, 3.4, 0.18, 3.4, 0x8a7a6a, 0, 0.09, 0);
+    cone(g, 2.6, 1.4, 4, roof, 0, 2.8, 0);
+    box(g, 0.85, 1.55, 0.14, doorCol, 0.7, 0.78, 1.63);
+    ball(g, 0.05, 0xd4a040, 0.95, 0.85, 1.72);
+    box(g, 0.75, 0.75, 0.12, frame, -0.65, 1.3, 1.6);
+    box(g, 0.65, 0.65, 0.06, glass, -0.65, 1.3, 1.67);
+    box(g, 0.05, 0.65, 0.04, frame, -0.65, 1.3, 1.71);
+    box(g, 0.65, 0.05, 0.04, frame, -0.65, 1.3, 1.71);
+  } else if (level === 2) {
+    box(g, 4.4, 3.0, 4.0, walls, 0, 1.5, 0);
+    box(g, 4.6, 0.25, 4.2, 0x8a7a6a, 0, 0.12, 0);
+    const rl = box(g, 3.0, 0.22, 4.6, roof, -1.2, 3.9, 0); rl.rotation.z = 0.55;
+    const rr = box(g, 3.0, 0.22, 4.6, roof, 1.2, 3.9, 0); rr.rotation.z = -0.55;
+    box(g, 0.25, 0.25, 4.6, 0x7a2818, 0, 4.55, 0);
+    box(g, 0.55, 1.6, 0.55, 0x8d5b4c, 1.3, 4.3, -0.9);
+    box(g, 1.0, 1.9, 0.16, doorCol, 0, 0.95, 2.03);
+    ball(g, 0.06, 0xd4a040, 0.35, 1.0, 2.14);
+    box(g, 0.95, 0.95, 0.14, frame, -1.4, 1.85, 2.0);
+    box(g, 0.85, 0.85, 0.08, glass, -1.4, 1.85, 2.06);
+    box(g, 0.95, 0.95, 0.14, frame, 1.4, 1.85, 2.0);
+    box(g, 0.85, 0.85, 0.08, glass, 1.4, 1.85, 2.06);
+    box(g, 0.85, 0.85, 0.12, frame, -2.23, 1.7, 0);
+    box(g, 0.75, 0.75, 0.08, glass, -2.28, 1.7, 0);
+    box(g, 0.85, 0.85, 0.12, frame, 2.23, 1.7, 0);
+    box(g, 0.75, 0.75, 0.08, glass, 2.28, 1.7, 0);
+  } else {
+    box(g, 5.0, 3.0, 4.5, walls, 0, 1.5, 0);
+    box(g, 5.2, 0.25, 4.7, 0x8a7a6a, 0, 0.12, 0);
+    box(g, 5.1, 0.22, 4.6, 0x8a6a4a, 0, 3.05, 0);
+    box(g, 4.6, 2.8, 4.1, walls, 0, 4.55, 0);
+    const rl = box(g, 3.4, 0.24, 5.0, roof, -1.35, 6.35, 0); rl.rotation.z = 0.5;
+    const rr = box(g, 3.4, 0.24, 5.0, roof, 1.35, 6.35, 0); rr.rotation.z = -0.5;
+    box(g, 0.28, 0.28, 5.0, 0x7a2818, 0, 7.1, 0);
+    box(g, 0.6, 1.7, 0.6, 0x8d5b4c, 1.5, 6.7, -1.0);
+    box(g, 0.7, 0.4, 0.7, 0x554433, 1.5, 7.7, -1.0);
+    box(g, 3.0, 0.2, 1.4, 0x8a6a45, 0, 0.1, 3.0);
+    cyl(g, 0.1, 0.1, 1.8, 6, 0x8a6a45, -1.3, 0.9, 3.6);
+    cyl(g, 0.1, 0.1, 1.8, 6, 0x8a6a45, 1.3, 0.9, 3.6);
+    const porch = box(g, 3.3, 0.18, 1.7, 0x8a2a18, 0, 2.0, 3.0); porch.rotation.x = -0.15;
+    box(g, 1.05, 2.0, 0.16, doorCol, 0, 1.0, 2.28);
+    ball(g, 0.06, 0xd4a040, 0.35, 1.05, 2.4);
+    [[-1.6, 1.7, 2.28], [1.6, 1.7, 2.28], [-2.5, 1.7, 0], [2.5, 1.7, 0]].forEach(([x, y, z]) => {
+      const rot = (Math.abs(x) > 2.2) ? Math.PI / 2 : 0;
+      const fr = box(g, 0.95, 0.95, 0.14, frame, x, y, z);
+      const gl = box(g, 0.85, 0.85, 0.08, glass, x + Math.sin(rot) * 0.06, y, z + Math.cos(rot) * 0.06);
+      fr.rotation.y = rot; gl.rotation.y = rot;
+    });
+    [[-1.4, 5.3, 2.08], [0, 5.3, 2.08], [1.4, 5.3, 2.08]].forEach(([x, y, z]) => {
+      box(g, 0.9, 0.9, 0.12, frame, x, y, z);
+      box(g, 0.8, 0.8, 0.06, glass, x, y, z + 0.06);
+    });
+    [[-2.35, 5.3, 0], [2.35, 5.3, 0]].forEach(([x, y, z]) => {
+      box(g, 0.85, 0.85, 0.12, frame, x, y, z);
+      box(g, 0.75, 0.75, 0.06, glass, x + (x > 0 ? 0.05 : -0.05), y, z);
+    });
+    box(g, 3.2, 0.12, 1.2, 0x6b4a2f, 0, 3.2, 2.4);
+    for (let i = -2; i <= 2; i++) cyl(g, 0.03, 0.03, 0.6, 6, 0x6b4a2f, i * 0.65, 3.55, 3.0);
+    box(g, 3.2, 0.05, 0.05, 0x6b4a2f, 0, 3.85, 3.0);
+  }
   return g;
 }
-function makeCoop() {
+function makeCoop(level = 1) {
   const g = new THREE.Group();
   box(g, 3.4, 1.7, 2.6, 0xc08a4e, 0, 0.85, 0);
-  cone(g, 2.5, 1.2, 4, 0x6b4a2f, 0, 2.3, 0);
-  box(g, 0.6, 0.6, 0.12, 0x33241a, 0, 0.6, 1.33);
-  const ramp = box(g, 0.9, 0.07, 1.7, 0x9a6b3a, 0, 0.3, 2.05);
-  ramp.rotation.x = -0.35;
-  [[-1.6, 0.25, 2.0], [1.7, 0.25, 1.6], [0.9, 0.25, 2.6]].forEach(([x, y, z]) => {
-    ball(g, 0.22, 0xf5f5f0, x, y, z);
-    const head = ball(g, 0.14, 0xf5f5f0, x + 0.15, y + 0.2, z);
-    head.scale.set(1, 1.1, 1);
-    cone(g, 0.07, 0.18, 6, 0xffb300, x + 0.26, y + 0.2, z).rotation.z = -Math.PI / 2;
-  });
+  box(g, 3.6, 0.15, 2.8, 0x8a6a4a, 0, 0.08, 0);
+  const rl = box(g, 2.4, 0.18, 3.0, 0x6b4a2f, -0.85, 2.15, 0); rl.rotation.z = 0.5;
+  const rr = box(g, 2.4, 0.18, 3.0, 0x6b4a2f, 0.85, 2.15, 0); rr.rotation.z = -0.5;
+  box(g, 0.2, 0.2, 3.0, 0x4a3020, 0, 2.55, 0);
+  box(g, 0.6, 0.6, 0.12, 0x33241a, 0, 0.5, 1.33);
+  const ramp = box(g, 0.9, 0.07, 1.7, 0x9a6b3a, 0, 0.3, 2.05); ramp.rotation.x = -0.35;
+  if (level >= 2) {
+    box(g, 1.2, 0.2, 0.6, 0x8a6a45, -2.4, 0.1, 1.0);
+    box(g, 0.5, 0.35, 0.5, 0x6a8ac0, 2.4, 0.18, 1.0);
+    ball(g, 0.3, 0xd8b878, 0, 2.9, -0.8);
+  }
+  if (level >= 3) {
+    box(g, 2.2, 1.0, 2.2, 0xc08a4e, -2.8, 0.5, -1.2);
+    box(g, 2.4, 0.15, 2.4, 0x8a6a4a, -2.8, 0.08, -1.2);
+    cyl(g, 0.04, 0.04, 1.8, 6, 0x666666, 1.8, 3.0, 0);
+    box(g, 0.45, 0.35, 0.03, 0xd4a020, 1.8, 3.9, 0);
+  }
   return g;
 }
-function makeFarm() {
+function makeFarm(level = 1) {
   const g = new THREE.Group();
-  box(g, 8.6, 0.22, 6.6, 0x7a5636, 0, 0.11, 0);
-  for (let r = 0; r < 4; r++) box(g, 7.4, 0.55, 0.7, 0xcbb43f, 0, 0.4, -2.1 + r * 1.4);
-  box(g, 2.6, 1.8, 2.2, 0xa9713f, 3.6, 0.9, 2.5);
-  cone(g, 1.95, 1.0, 4, 0x7a4a2a, 3.6, 2.3, 2.5);
-  box(g, 0.9, 1.2, 0.12, 0x5c3a20, 3.6, 0.6, 3.62);
+  box(g, 8.6, 0.2, 6.6, 0x7a5636, 0, 0.1, 0);
+  for (let r = 0; r < 4; r++) {
+    box(g, 7.4, 0.15, 0.8, 0x5a4020, 0, 0.32, -2.1 + r * 1.4);
+    box(g, 7.0, 0.5, 0.6, 0xcbb43f, 0, 0.55, -2.1 + r * 1.4);
+  }
+  if (level >= 2) {
+    cyl(g, 0.06, 0.06, 2.2, 6, 0x6b4a2f, -2.6, 1.1, 2.2);
+    box(g, 1.4, 0.1, 0.1, 0x6b4a2f, -2.6, 1.7, 2.2);
+    box(g, 0.6, 0.6, 0.25, 0xd04040, -2.6, 1.9, 2.2);
+    ball(g, 0.18, 0xf0d0a0, -2.6, 2.35, 2.2);
+    cone(g, 0.28, 0.2, 8, 0xaa8030, -2.6, 2.55, 2.2);
+  }
+  if (level >= 3) {
+    box(g, 3.4, 2.2, 2.8, 0xa9713f, 3.6, 1.1, 2.5);
+    box(g, 3.6, 0.15, 3.0, 0x8a5a2a, 3.6, 0.08, 2.5);
+    const r1 = box(g, 2.2, 0.2, 3.2, 0x6a3a1a, 2.6, 2.6, 2.5); r1.rotation.z = 0.45;
+    const r2 = box(g, 2.2, 0.2, 3.2, 0x6a3a1a, 4.6, 2.6, 2.5); r2.rotation.z = -0.45;
+    box(g, 1.0, 1.4, 0.12, 0x5c3a20, 3.6, 0.7, 3.92);
+    cyl(g, 0.45, 0.45, 0.9, 10, 0x8a6030, -3.2, 0.45, -2.5);
+    cyl(g, 0.45, 0.45, 0.9, 10, 0x8a6030, -2.2, 0.45, -2.5);
+  }
   return g;
 }
-function makeSawmill() {
+function makeSawmill(level = 1) {
   const g = new THREE.Group();
   box(g, 4.6, 0.28, 4.0, 0x8b6b4a, 0, 0.14, 0);
-  box(g, 4.6, 0.22, 3.8, 0x6b4a2f, 0, 2.5, 0);
+  box(g, 4.8, 0.22, 4.2, 0x6b4a2f, 0, 2.5, 0);
   [-1.9, 1.9].forEach(x => [-1.6, 1.6].forEach(z => cyl(g, 0.11, 0.11, 2.4, 6, 0x9a7a55, x, 1.2, z)));
   for (let i = 0; i < 3; i++) for (let j = 0; j < 2 - i; j++) {
     const log = cyl(g, 0.3, 0.3, 3.0, 8, 0x7d5a38, -1.0 + j * 0.65, 0.55 + i * 0.58, -2.9);
@@ -473,52 +765,112 @@ function makeSawmill() {
   }
   const blade = cyl(g, 0.9, 0.9, 0.09, 16, 0xb9c2c9, 1.2, 1.1, 0.6);
   blade.rotation.z = Math.PI / 2;
+  if (level >= 2) {
+    box(g, 0.1, 1.6, 2.4, 0x6b4a2f, -2.0, 0.8, 0);
+    box(g, 0.4, 0.08, 2.4, 0x9a7a55, -1.85, 1.3, 0);
+    const saw = cyl(g, 0.4, 0.4, 0.04, 12, 0xd0d8de, -1.8, 1.5, 0.5); saw.rotation.z = Math.PI / 2;
+  }
+  if (level >= 3) {
+    const bb = cyl(g, 1.3, 1.3, 0.1, 20, 0xd8e0e8, 0, 2.2, 0); bb.rotation.z = Math.PI / 2;
+    box(g, 4.0, 0.15, 0.6, 0x554433, 0, 0.5, 1.6);
+    for (let i = 0; i < 5; i++) box(g, 2.4, 0.08, 0.5, 0xc0a070, 2.5, 0.24 + i * 0.09, 1.2);
+  }
   return g;
 }
-function makeMarket() {
+function makeMarket(level = 1) {
   const g = new THREE.Group();
-  box(g, 3.2, 1.0, 1.6, 0xa87848, 0, 0.5, 0);
-  box(g, 3.2, 0.1, 1.7, 0x8b6239, 0, 1.02, 0);
-  [-1.45, 1.45].forEach(x => [-0.7, 0.7].forEach(z => cyl(g, 0.09, 0.09, 2.7, 6, 0x8a6a45, x, 1.35, z)));
+  box(g, 3.6, 0.15, 2.0, 0x8a6a4a, 0, 0.08, 0);
+  box(g, 3.2, 1.0, 1.6, 0xa87848, 0, 0.55, 0);
+  box(g, 3.4, 0.1, 1.7, 0x8b6239, 0, 1.05, 0);
+  [-1.45, 1.45].forEach(x => [-0.7, 0.7].forEach(z => cyl(g, 0.09, 0.09, 2.6, 6, 0x8a6a45, x, 1.4, z)));
   for (let i = 0; i < 8; i++) {
     const c = i % 2 === 0 ? 0xd94b4b : 0xf5f5f0;
     const w = 3.8 / 8;
-    box(g, w, 0.12, 3.0, c, -1.9 + w / 2 + i * w, 2.75, 0);
+    box(g, w, 0.15, 3.0, c, -1.9 + w / 2 + i * w, 2.75, 0);
   }
-  box(g, 0.7, 0.7, 0.7, 0xb08050, -2.0, 0.35, 1.4);
-  box(g, 0.6, 0.6, 0.6, 0x9a6b3a, 2.1, 0.3, 1.3);
-  ball(g, 0.16, 0xe8542f, -2.0, 0.78, 1.4);
-  ball(g, 0.16, 0xf0c419, 2.1, 0.68, 1.3);
+  box(g, 0.7, 0.7, 0.7, 0xb08050, -2.0, 0.4, 1.4);
+  box(g, 0.6, 0.6, 0.6, 0x9a6b3a, 2.1, 0.35, 1.3);
+  ball(g, 0.16, 0xe8542f, -2.0, 0.85, 1.4);
+  ball(g, 0.16, 0xf0c419, 2.1, 0.75, 1.3);
+  if (level >= 2) {
+    box(g, 0.55, 0.55, 0.55, 0x9a6b3a, -1.2, 1.35, 0.5);
+    box(g, 0.55, 0.55, 0.55, 0x9a6b3a, 0.5, 1.35, 0.5);
+    ball(g, 0.15, 0x70c040, 0.5, 1.72, 0.5);
+    ball(g, 0.15, 0xa040c0, -1.2, 1.72, 0.5);
+  }
+  if (level >= 3) {
+    box(g, 2.4, 0.15, 1.6, 0x8a6a4a, 0, 0.08, -2.7);
+    box(g, 2.2, 0.9, 1.4, 0xa87848, 0, 0.5, -2.7);
+    box(g, 2.4, 0.1, 1.5, 0x8b6239, 0, 1.0, -2.7);
+    for (let i = 0; i < 6; i++) {
+      const c = i % 2 === 0 ? 0x4b8ad9 : 0xf5f5f0;
+      const w = 2.6 / 6;
+      box(g, w, 0.12, 2.6, c, -1.3 + w / 2 + i * w, 2.45, -2.7);
+    }
+    cyl(g, 0.08, 0.08, 2.4, 6, 0x8a6a45, -1.3, 1.25, -3.5);
+    cyl(g, 0.08, 0.08, 2.4, 6, 0x8a6a45, 1.3, 1.25, -3.5);
+  }
   return g;
 }
-function makeWarehouse() {
+function makeWarehouse(level = 1) {
   const g = new THREE.Group();
   box(g, 5.0, 3.0, 4.0, 0xd8c9a3, 0, 1.5, 0);
-  const r1 = box(g, 3.3, 0.24, 4.4, 0x8a4a3a, -1.25, 3.75, 0); r1.rotation.z = 0.48;
-  const r2 = box(g, 3.3, 0.24, 4.4, 0x8a4a3a, 1.25, 3.75, 0); r2.rotation.z = -0.48;
+  box(g, 5.2, 0.2, 4.2, 0x8a7a6a, 0, 0.1, 0);
+  const r1 = box(g, 3.4, 0.25, 4.4, 0x8a4a3a, -1.25, 3.75, 0); r1.rotation.z = 0.48;
+  const r2 = box(g, 3.4, 0.25, 4.4, 0x8a4a3a, 1.25, 3.75, 0); r2.rotation.z = -0.48;
+  box(g, 0.3, 0.25, 4.6, 0x5a2a1a, 0, 4.7, 0);
   box(g, 2.3, 2.3, 0.16, 0x8b6b4a, 0, 1.15, 2.05);
   box(g, 0.14, 2.3, 0.1, 0x6b4a2f, 0, 1.15, 2.13);
+  if (level >= 2) {
+    box(g, 3.0, 0.4, 1.4, 0x8a6a45, 0, 0.25, 3.0);
+    box(g, 0.7, 0.7, 0.7, 0xb08050, -1.0, 0.75, 3.2);
+    box(g, 0.7, 0.7, 0.7, 0xb08050, 0.2, 0.75, 3.2);
+  }
+  if (level >= 3) {
+    const r3 = box(g, 2.6, 0.22, 4.4, 0x8a4a3a, -2.4, 2.4, 0); r3.rotation.z = 0.7;
+    box(g, 0.9, 0.9, 0.14, 0x8a6a4a, -1.4, 2.0, 2.03);
+    box(g, 0.8, 0.8, 0.08, 0x9fd8ff, -1.4, 2.0, 2.1);
+    cyl(g, 0.04, 0.04, 1.5, 6, 0x555555, 0, 5.5, 0);
+    box(g, 0.65, 0.4, 0.03, 0x2f9e5c, 0.35, 6.0, 0);
+  }
+  return g;
+}
+function makePier() {
+  const g = new THREE.Group();
+  const plank = 0x9a7a52, post = 0x6b4a2f;
+  for (let i = 0; i < 5; i++) box(g, 1.5, 0.08, 0.4, plank, 0, 0.28, i * 0.7);
+  box(g, 0.12, 0.08, 3.2, plank, -0.6, 0.32, 1.4);
+  box(g, 0.12, 0.08, 3.2, plank, 0.6, 0.32, 1.4);
+  [-0.6, 0.6].forEach(x => [0.2, 1.4, 2.6].forEach(z => cyl(g, 0.07, 0.07, 0.6, 6, post, x, 0.14, z)));
+  [-0.6, 0.6].forEach(x => {
+    cyl(g, 0.035, 0.035, 0.35, 6, post, x, 0.5, 0.2);
+    cyl(g, 0.035, 0.035, 0.35, 6, post, x, 0.5, 2.6);
+    box(g, 0.035, 0.035, 2.5, post, x, 0.68, 1.4);
+  });
   return g;
 }
 function makeFence() {
   const g = new THREE.Group();
-  const len = 2.4, h = 0.9;
-  cyl(g, 0.06, 0.06, h, 6, 0x8a6a45, -len/2 + 0.1, h/2, 0);
-  cyl(g, 0.06, 0.06, h, 6, 0x8a6a45, len/2 - 0.1, h/2, 0);
-  box(g, len - 0.2, 0.08, 0.04, 0x9a7a55, 0, h * 0.75, 0);
-  box(g, len - 0.2, 0.08, 0.04, 0x9a7a55, 0, h * 0.4, 0);
+  const len = 2.4, h = 1.1;
+  cyl(g, 0.07, 0.07, h, 6, 0x8a6a45, -len/2 + 0.1, h/2, 0);
+  cyl(g, 0.07, 0.07, h, 6, 0x8a6a45, len/2 - 0.1, h/2, 0);
+  box(g, len - 0.2, 0.09, 0.05, 0x9a7a55, 0, h * 0.75, 0);
+  box(g, len - 0.2, 0.09, 0.05, 0x9a7a55, 0, h * 0.4, 0);
+  box(g, len - 0.2, 0.09, 0.05, 0x9a7a55, 0, h * 0.1, 0);
   return g;
 }
-
 const MESH_BUILDERS = {
   house: makeHouse, coop: makeCoop, farm: makeFarm,
   sawmill: makeSawmill, market: makeMarket, warehouse: makeWarehouse,
-  fence: makeFence
+  pier: makePier, fence: makeFence
 };
-function createBuildingMesh(type) { return MESH_BUILDERS[type](); }
+function createBuildingMesh(type, level = 1) {
+  if (type === 'fence') return makeFence();
+  return MESH_BUILDERS[type](level);
+}
 
 /* =========================================================
-   6. МОДЕЛИ ЖИТЕЛЕЙ
+   6. МОДЕЛИ ЖИТЕЛЕЙ / ИНСТРУМЕНТОВ / ЖИВОТНЫХ / КУРИЦ
    ========================================================= */
 function makeManMesh() {
   const g = new THREE.Group();
@@ -548,11 +900,92 @@ function makeWomanMesh() {
   h.position.y = 1.78; h.castShadow = true; g.add(h);
   return g;
 }
-function createVillagerMesh(type) { return type === 'man' ? makeManMesh() : makeWomanMesh(); }
-
-/* =========================================================
-   7. МОДЕЛИ ЖИВОТНЫХ
-   ========================================================= */
+function createVillagerMesh(type) {
+  const g = type === 'man' ? makeManMesh() : makeWomanMesh();
+  g.rotation.order = 'YXZ';
+  return g;
+}
+function makeAxeMesh() {
+  const g = new THREE.Group();
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, 0.75, 8), M(0x8a6a45));
+  handle.rotation.x = Math.PI / 2;
+  handle.position.set(0, 0, 0.30);
+  handle.castShadow = true; g.add(handle);
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.030, 0.14, 8), M(0x5a3a20));
+  grip.rotation.x = Math.PI / 2;
+  grip.position.set(0, 0, 0);
+  grip.castShadow = true; g.add(grip);
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.026, 0.09, 8), M(0x555a60));
+  collar.rotation.x = Math.PI / 2;
+  collar.position.set(0, 0, 0.62);
+  collar.castShadow = true; g.add(collar);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.11, 0.11), M(0x707580));
+  head.position.set(0, -0.04, 0.62);
+  head.castShadow = true; g.add(head);
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.20, 0.14), M(0xb8c0c8));
+  blade.position.set(0, -0.17, 0.65);
+  blade.castShadow = true; g.add(blade);
+  const edge = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.02, 0.15), M(0xf0f5fa));
+  edge.position.set(0, -0.27, 0.65);
+  edge.castShadow = true; g.add(edge);
+  return g;
+}
+function makeRodMesh() {
+  const g = new THREE.Group();
+  const rodLen = 2.0;
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.016, rodLen, 6), M(0xb08040));
+  rod.rotation.x = Math.PI / 2;
+  rod.position.set(0, 0, rodLen / 2);
+  rod.castShadow = true; g.add(rod);
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.32, 8), M(0x5a3a20));
+  grip.rotation.x = Math.PI / 2;
+  grip.position.set(0, 0, 0.16);
+  grip.castShadow = true; g.add(grip);
+  const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.06, 12), M(0x404045));
+  reel.rotation.z = Math.PI / 2;
+  reel.position.set(0.06, -0.04, 0.32);
+  reel.castShadow = true; g.add(reel);
+  const tipZ = rodLen;
+  const lineEndY = -1.2;
+  const lineEndZ = tipZ + 0.15;
+  const lineGeom = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0.005, tipZ),
+    new THREE.Vector3(0, lineEndY, lineEndZ)
+  ]);
+  const line = new THREE.Line(lineGeom, new THREE.LineBasicMaterial({ color: 0xeeeeee, transparent: true, opacity: 0.85 }));
+  g.add(line);
+  const bobber = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), M(0xd04040));
+  bobber.position.set(0, lineEndY, lineEndZ);
+  bobber.castShadow = true; g.add(bobber);
+  return g;
+}
+function equipTool(v, toolType) {
+  if (v._toolMesh) {
+    v.group.remove(v._toolMesh);
+    v._toolMesh.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
+        else o.material.dispose();
+      }
+    });
+    v._toolMesh = null;
+  }
+  if (!toolType) return;
+  let tool;
+  if (toolType === 'axe') {
+    tool = makeAxeMesh();
+    tool.position.set(0.30, 0.72, 0.05);
+    tool.rotation.set(0, 0, 0);
+  } else if (toolType === 'rod') {
+    tool = makeRodMesh();
+    tool.position.set(0.30, 1.05, 0.10);
+    tool.rotation.set(0, 0, 0);
+  }
+  if (!tool) return;
+  v.group.add(tool);
+  v._toolMesh = tool;
+}
 function makeFoxMesh() {
   const g = new THREE.Group();
   const c = 0xd67a2a;
@@ -561,9 +994,9 @@ function makeFoxMesh() {
   ball(g, 0.07, 0x222222, 0, 0.5, 0.75);
   cone(g, 0.09, 0.18, 4, c, -0.12, 0.78, 0.5);
   cone(g, 0.09, 0.18, 4, c, 0.12, 0.78, 0.5);
-  const tail = cyl(g, 0.12, 0.16, 0.55, 6, c, 0, 0.5, -0.55);
+  const tail = cyl(g, 0.12, 0.16, 0.55, 6, c, 0, 0.55, -0.55);
   tail.rotation.x = -0.9;
-  ball(g, 0.12, 0xfff5e8, 0, 0.35, -0.82);
+  ball(g, 0.13, 0xfff5e8, 0, 0.72, -0.88);
   [-0.18, 0.18].forEach(x => {
     cyl(g, 0.06, 0.06, 0.32, 5, c, x, 0.16, 0.3);
     cyl(g, 0.06, 0.06, 0.32, 5, c, x, 0.16, -0.3);
@@ -578,8 +1011,7 @@ function makeWolfMesh() {
   ball(g, 0.08, 0x111111, 0, 0.66, 0.9);
   cone(g, 0.1, 0.22, 4, c, -0.14, 0.95, 0.62);
   cone(g, 0.1, 0.22, 4, c, 0.14, 0.95, 0.62);
-  const tail = cyl(g, 0.1, 0.14, 0.6, 6, c, 0, 0.6, -0.65);
-  tail.rotation.x = -0.7;
+  const tail = cyl(g, 0.1, 0.14, 0.6, 6, c, 0, 0.6, -0.65); tail.rotation.x = -0.7;
   [-0.22, 0.22].forEach(x => {
     cyl(g, 0.08, 0.08, 0.4, 5, c, x, 0.2, 0.38);
     cyl(g, 0.08, 0.08, 0.4, 5, c, x, 0.2, -0.38);
@@ -600,10 +1032,24 @@ function makeBearMesh() {
   });
   return g;
 }
+function makeChickenMesh() {
+  const g = new THREE.Group();
+  const c = 0xf5f5f0;
+  const body = ball(g, 0.18, c, 0, 0.25, 0); body.scale.set(1, 0.9, 1.15);
+  ball(g, 0.11, c, 0, 0.42, 0.15);
+  const beak = cone(g, 0.05, 0.1, 6, 0xffb300, 0, 0.42, 0.26); beak.rotation.x = Math.PI / 2;
+  ball(g, 0.04, 0xd04040, 0, 0.55, 0.12);
+  const tail = cone(g, 0.1, 0.16, 5, 0xe8e0c0, 0, 0.4, -0.18); tail.rotation.x = -0.7;
+  ball(g, 0.03, 0x111111, -0.05, 0.44, 0.22);
+  ball(g, 0.03, 0x111111, 0.05, 0.44, 0.22);
+  cyl(g, 0.02, 0.02, 0.14, 4, 0xffb300, -0.07, 0.07, 0.05);
+  cyl(g, 0.02, 0.02, 0.14, 4, 0xffb300, 0.07, 0.07, 0.05);
+  return g;
+}
 const ANIMAL_MESHES = { fox: makeFoxMesh, wolf: makeWolfMesh, bear: makeBearMesh };
 
 /* =========================================================
-   8. ДЕКОР
+   7. ДЕКОР
    ========================================================= */
 function makeTree() {
   const g = new THREE.Group();
@@ -626,15 +1072,22 @@ function makeRock() {
   m.castShadow = true; m.receiveShadow = true; g.add(m);
   return g;
 }
+function makeForestStump() {
+  const g = new THREE.Group();
+  cyl(g, 0.4, 0.45, 0.5, 8, 0x6b4a2f, 0, 0.25, 0);
+  cyl(g, 0.4, 0.4, 0.05, 8, 0x8a6a4a, 0, 0.52, 0);
+  return g;
+}
 (function decorate() {
   const placed = [];
-  const tooClose = (x, z, r) => placed.some(p => (p.x - x) ** 2 + (p.z - z) ** 2 < (p.r + r) ** 2);
-  for (let i = 0; i < 90; i++) {
+  const tooClose = (x, z, r) => placed.some(p => (p.x-x)**2 + (p.z-z)**2 < (p.r+r)**2);
+  for (let i = 0; i < 100; i++) {
     const a = Math.random() * Math.PI * 2;
     const d = 34 + Math.random() * 78;
     const x = Math.cos(a) * d, z = Math.sin(a) * d;
     if (Math.abs(x) > 140 || Math.abs(z) > 140) continue;
     if (tooClose(x, z, 3)) continue;
+    if (isInRiver(x, z)) continue;
     placed.push({ x, z, r: 3 });
     const t = makeTree();
     t.scale.setScalar(0.75 + Math.random() * 0.65);
@@ -643,10 +1096,10 @@ function makeRock() {
     scene.add(t);
   }
   for (let i = 0; i < 55; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const d = 26 + Math.random() * 85;
+    const a = Math.random() * Math.PI * 2, d = 26 + Math.random() * 85;
     const x = Math.cos(a) * d, z = Math.sin(a) * d;
     if (tooClose(x, z, 1.6)) continue;
+    if (isInRiver(x, z)) continue;
     placed.push({ x, z, r: 1.6 });
     const o = Math.random() < 0.62 ? makeBush() : makeRock();
     o.position.set(x, 0, z);
@@ -654,16 +1107,33 @@ function makeRock() {
     o.scale.setScalar(0.7 + Math.random() * 0.8);
     scene.add(o);
   }
+  for (let i = 0; i < 50; i++) {
+    const x = -BOUND + Math.random() * BOUND * 2;
+    const z = RIVER_Z - RIVER_HALF_WIDTH - 0.3 - Math.random() * 1.5;
+    const r = makeRock();
+    r.position.set(x, 0, z);
+    r.rotation.y = Math.random() * Math.PI * 2;
+    r.scale.setScalar(0.4 + Math.random() * 0.6);
+    scene.add(r);
+  }
+  for (let i = 0; i < 12; i++) {
+    const x = -BOUND + 4 + Math.random() * 8;
+    const z = -BOUND + 4 + Math.random() * 8;
+    if (tooClose(x, z, 1.2)) continue;
+    placed.push({ x, z, r: 1.2 });
+    const s = makeForestStump();
+    s.position.set(x, 0, z);
+    scene.add(s);
+  }
 })();
 
 /* =========================================================
-   9. GHOST / РАЗМЕЩЕНИЕ
+   8. GHOST / РАЗМЕЩЕНИЕ
    ========================================================= */
 let ghost = null, ghostMode = null, ghostType = null, ghostBuilding = null;
 let demolishMode = false;
 let ghostRotation = 0;
 const ghostMat = new THREE.MeshBasicMaterial({ color: 0x55ff99, transparent: true, opacity: 0.55, depthWrite: false });
-
 const raycaster = new THREE.Raycaster();
 const ptr = new THREE.Vector2(-10, -10);
 let ptrValid = false;
@@ -674,7 +1144,7 @@ function clearGhost() {
 }
 function showBuildGhost(type) {
   clearGhost();
-  ghost = createBuildingMesh(type);
+  ghost = createBuildingMesh(type, 1);
   ghostMode = 'build'; ghostType = type;
   ghostRotation = 0;
   ghost.rotation.y = ghostRotation;
@@ -684,7 +1154,7 @@ function showBuildGhost(type) {
 }
 function showMoveGhost(building) {
   clearGhost();
-  ghost = createBuildingMesh(building.type);
+  ghost = createBuildingMesh(building.type, building.level);
   ghostMode = 'move'; ghostBuilding = building;
   ghostRotation = building.rotation || 0;
   ghost.rotation.y = ghostRotation;
@@ -703,22 +1173,32 @@ function cancelPlacement() {
 function updateTopButtons() {
   document.getElementById('plus-btn').classList.toggle('active', !!ghost || demolishMode);
 }
-
 function isValidPlacement(type, x, z, ignoreBuilding = null) {
   if (Math.abs(x) > BOUND - 1 || Math.abs(z) > BOUND - 1) return false;
   const def = BUILDINGS[type];
   const r = def.radius;
+  const rd = riverDistance(x, z);
+  const inRiver = isInRiver(x, z);
+  if (def.onWater) {
+    if (Math.abs(z - RIVER_Z) > RIVER_HALF_WIDTH + 3) return false;
+  } else if (def.needsRiver) {
+    if (inRiver) return false;
+    if (rd > 2.5) return false;
+  } else if (def.isFence) {
+    if (rd < 0.2) return false;
+  } else {
+    if (rd < 1.0) return false;
+  }
   for (const b of state.buildings) {
     if (b === ignoreBuilding) continue;
-    const bDef = b.def;
     let buffer = 0.9;
-    if (def.isFence && bDef.isFence) buffer = -0.35;
-    const minD = r + bDef.radius + buffer;
+    if (def.isFence && b.def.isFence) buffer = -0.35;
+    if (def.onWater && b.def.onWater) buffer = -0.6;
+    const minD = r + b.def.radius + buffer;
     if ((b.x - x) ** 2 + (b.z - z) ** 2 < minD * minD) return false;
   }
   for (const v of state.villagers) {
-    const d = Math.hypot(v.group.position.x - x, v.group.position.z - z);
-    if (d < r + 0.4) return false;
+    if (Math.hypot(v.group.position.x - x, v.group.position.z - z) < r + 0.4) return false;
   }
   return true;
 }
@@ -726,98 +1206,316 @@ function canAfford(cost) { return state.money >= (cost.money || 0) && state.wood
 function costString(cost) {
   return [cost.money ? `💰 ${cost.money}` : '', cost.wood ? `🪵 ${cost.wood}` : ''].filter(Boolean).join('  ');
 }
-
-/* -------- уникальные имена и авто-генерация -------- */
 function isNameTaken(name, exclude = null) {
-  for (const b of state.buildings) {
-    if (b !== exclude && b.name === name) return true;
-  }
-  for (const v of state.villagers) {
-    if (v !== exclude && v.name === name) return true;
-  }
+  for (const b of state.buildings) if (b !== exclude && b.name === name) return true;
+  for (const v of state.villagers) if (v !== exclude && v.name === name) return true;
   return false;
 }
-
-function nextAutoName(baseName, existingNames) {
-  const escaped = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp('^' + escaped + ' (\\d+)$');
+function nextAutoName(base, names) {
+  const esc = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('^' + esc + ' (\\d+)$');
   const used = new Set();
-  for (const n of existingNames) {
-    const m = n.match(re);
-    if (m) used.add(parseInt(m[1], 10));
-  }
-  let k = 1;
-  while (used.has(k)) k++;
-  return baseName + ' ' + k;
+  for (const n of names) { const m = n.match(re); if (m) used.add(parseInt(m[1], 10)); }
+  let k = 1; while (used.has(k)) k++;
+  return base + ' ' + k;
 }
+function nextBuildingName(t) { return nextAutoName(BUILDINGS[t].name, state.buildings.map(b => b.name)); }
+function nextVillagerName(t) { return nextAutoName(VILLAGERS[t].name, state.villagers.map(v => v.name)); }
 
-function nextBuildingName(type) {
-  const baseName = BUILDINGS[type].name;
-  const existing = state.buildings.map(b => b.name);
-  return nextAutoName(baseName, existing);
-}
-
-function nextVillagerName(type) {
-  const baseName = VILLAGERS[type].name;
-  const existing = state.villagers.map(v => v.name);
-  return nextAutoName(baseName, existing);
-}
-
-function addBuilding(type, x, z, level = 1, rotation = 0, name = null) {
+function addBuilding(type, x, z, level = 1, rotation = 0, name = null, skipChickens = false) {
   const def = BUILDINGS[type];
-  const group = createBuildingMesh(type);
+  const group = createBuildingMesh(type, level);
   group.position.set(x, 0, z);
   group.rotation.y = rotation;
   scene.add(group);
   state.buildingCounter++;
-  const finalName = name || nextBuildingName(type);
   const b = {
-    id: state.buildingCounter,
-    type, def, group, x, z,
+    id: state.buildingCounter, type, def, group, x, z,
     workers: 0, level, rotation,
-    name: finalName,
+    name: name || nextBuildingName(type),
     frightenedUntil: 0
   };
   group.userData.buildingRef = b;
   state.buildings.push(b);
+  if (type === 'coop' && !skipChickens) for (let i = 0; i < 3; i++) addChickenToCoop(b);
   return b;
 }
 function findBuilding(obj) {
-  while (obj) {
-    if (obj.userData && obj.userData.buildingRef) return obj.userData.buildingRef;
-    obj = obj.parent;
-  }
+  while (obj) { if (obj.userData && obj.userData.buildingRef) return obj.userData.buildingRef; obj = obj.parent; }
   return null;
+}
+function canWorkAt(v, b) {
+  if (b.type === 'pier') return false;
+  return true;
+}
+function isOnPierDeck(px, pz, pier) {
+  const dx = px - pier.x, dz = pz - pier.z;
+  const rot = pier.rotation || 0;
+  const cosR = Math.cos(rot), sinR = Math.sin(rot);
+  const lx = dx * cosR - dz * sinR;
+  const lz = dx * sinR + dz * cosR;
+  return (Math.abs(lx) < 1.0 && lz > -0.3 && lz < 3.15);
+}
+function getPierDeckY(px, pz) {
+  for (const b of state.buildings) {
+    if (b.type !== 'pier') continue;
+    if (isOnPierDeck(px, pz, b)) return 0.32;
+  }
+  return 0;
 }
 
 /* =========================================================
-   10. UI БАЗА
+   9. КУРИЦЫ
+   ========================================================= */
+function addChickenToCoop(coop) {
+  if (state.chickens.filter(c => c.coop === coop).length >= 10) return false;
+  const g = makeChickenMesh();
+  const a = Math.random() * Math.PI * 2, r = 1.6 + Math.random() * 0.8;
+  g.position.set(coop.x + Math.cos(a) * r, 0, coop.z + Math.sin(a) * r);
+  g.rotation.y = Math.random() * Math.PI * 2;
+  scene.add(g);
+  const ch = { group: g, coop, target: null, waitTimer: Math.random() * 2,
+    bob: Math.random() * 10, speed: 0.55 + Math.random() * 0.35 };
+  g.userData.chickenRef = ch;
+  state.chickens.push(ch);
+  return true;
+}
+function buyChicken() {
+  const coops = state.buildings.filter(b => b.type === 'coop');
+  if (coops.length === 0) { toast('Нет курятника', 'err'); return false; }
+  const avail = coops.filter(c => state.chickens.filter(ch => ch.coop === c).length < 10);
+  if (avail.length === 0) { toast('Все курятники полны', 'err'); return false; }
+  addChickenToCoop(avail[Math.floor(Math.random() * avail.length)]);
+  return true;
+}
+function findChicken(obj) {
+  while (obj) { if (obj.userData && obj.userData.chickenRef) return obj.userData.chickenRef; obj = obj.parent; }
+  return null;
+}
+function updateChickens(dt) {
+  for (const ch of state.chickens) {
+    if (ch.waitTimer > 0) { ch.waitTimer -= dt; continue; }
+    if (!ch.target) {
+      const a = Math.random() * Math.PI * 2, r = 1.4 + Math.random() * 1.2;
+      ch.target = { x: ch.coop.x + Math.cos(a) * r, z: ch.coop.z + Math.sin(a) * r };
+    }
+    const dx = ch.target.x - ch.group.position.x, dz = ch.target.z - ch.group.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.2) { ch.target = null; ch.waitTimer = 0.8 + Math.random() * 2.5; continue; }
+    const step = Math.min(ch.speed * dt, dist);
+    ch.group.position.x += (dx / dist) * step;
+    ch.group.position.z += (dz / dist) * step;
+    ch.group.rotation.y = Math.atan2(dx, dz);
+    ch.bob += dt * 12;
+    ch.group.position.y = Math.abs(Math.sin(ch.bob)) * 0.03;
+  }
+}
+function killChickenNear(coop) {
+  const cand = state.chickens.filter(c => c.coop === coop);
+  if (cand.length === 0) return false;
+  const ch = cand[0];
+  scene.remove(ch.group);
+  ch.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+  const i = state.chickens.indexOf(ch);
+  if (i >= 0) state.chickens.splice(i, 1);
+  return true;
+}
+
+/* =========================================================
+   10. UI
    ========================================================= */
 const el = {
   money: document.getElementById('r-money'),
   food: document.getElementById('r-food'),
   wood: document.getElementById('r-wood'),
   pop: document.getElementById('r-pop'),
+  chickens: document.getElementById('r-chickens'),
   jobs: document.getElementById('r-jobs'),
   sFood: document.getElementById('s-food'),
   sWood: document.getElementById('s-wood'),
   sIncome: document.getElementById('s-income'),
-  sCount: document.getElementById('s-count'),
-  sVillagers: document.getElementById('s-villagers'),
+  // компактные значения
+  cMoney: document.getElementById('c-money'),
+  cFood: document.getElementById('c-food'),
+  cWood: document.getElementById('c-wood'),
+  cVillagers: document.getElementById('c-villagers'),
+  cBuildings: document.getElementById('c-buildings'),
+  cEnv: document.getElementById('c-env'),
   toasts: document.getElementById('toasts'),
   plusMenu: document.getElementById('plus-menu'),
-  ctxMenu: document.getElementById('context-menu')
+  ctxMenu: document.getElementById('context-menu'),
+  timers: document.getElementById('timers')
 };
 
-function fmt(n) { n = Math.round(n * 10) / 10; return Number.isInteger(n) ? n.toString() : n.toFixed(1); }
-function signed(n) { return (n >= 0 ? '+' : '') + fmt(n); }
-
+function signed(n) {
+  const v = Math.round(n * 10) / 10;
+  return (v >= 0 ? '+' : '') + (Number.isInteger(v) ? v.toString() : v.toFixed(1));
+}
 function toast(msg, cls = '') {
   const d = document.createElement('div');
-  d.className = 'toast ' + cls;
-  d.textContent = msg;
+  d.className = 'toast ' + cls; d.textContent = msg;
   el.toasts.appendChild(d);
   setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 380); }, 2300);
+}
+window.addEventListener('contextmenu', e => {
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  e.preventDefault();
+  return false;
+}, true);
+
+/* =========================================================
+   СОХРАНЕНИЕ / ЗАГРУЗКА
+   ========================================================= */
+function saveGame() {
+  try {
+    const data = {
+      v: 1,
+      money: state.money, food: state.food, wood: state.wood,
+      capFood: state.capFood, capWood: state.capWood,
+      hasGun: state.hasGun, hasFishingRod: state.hasFishingRod, hasAxe: state.hasAxe,
+      nextAnimalSpawn: state.nextAnimalSpawn,
+      nextBearSpawn: state.nextBearSpawn,
+      buildingCounter: state.buildingCounter,
+      buildings: state.buildings.map(b => ({
+        id: b.id, type: b.type, x: b.x, z: b.z,
+        level: b.level, rotation: b.rotation, name: b.name
+      })),
+      villagers: state.villagers.map(v => ({
+        type: v.type,
+        x: v.group.position.x, z: v.group.position.z,
+        name: v.name,
+        homeId: v.home ? v.home.id : null,
+        workplaceId: v.workplace ? v.workplace.id : null,
+        hunger: v.hunger,
+        customTask: v.customTask || null
+      })),
+      chickens: state.chickens.map(c => ({
+        coopId: c.coop.id,
+        x: c.group.position.x, z: c.group.position.z
+      }))
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    return true;
+  } catch (e) {
+    console.warn('Save failed', e);
+    return false;
+  }
+}
+
+function clearScene() {
+  for (const a of state.animals) {
+    scene.remove(a.group);
+    a.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+  }
+  state.animals = [];
+  for (const ch of state.chickens) {
+    scene.remove(ch.group);
+    ch.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+  }
+  state.chickens = [];
+  for (const v of state.villagers) {
+    scene.remove(v.group);
+    v.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+  }
+  state.villagers = [];
+  for (const b of state.buildings) {
+    scene.remove(b.group);
+    b.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+  }
+  state.buildings = [];
+}
+
+function loadGame() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return false;
+  try {
+    const data = JSON.parse(raw);
+    if (!data || data.v !== 1) return false;
+    clearScene();
+    state.money = data.money ?? 500;
+    state.food = data.food ?? 100;
+    state.wood = data.wood ?? 30;
+    state.capFood = data.capFood ?? 200;
+    state.capWood = data.capWood ?? 100;
+    state.hasGun = !!data.hasGun;
+    state.hasFishingRod = !!data.hasFishingRod;
+    state.hasAxe = !!data.hasAxe;
+    state.nextAnimalSpawn = data.nextAnimalSpawn ?? 20;
+    state.nextBearSpawn = data.nextBearSpawn ?? (300 + Math.random() * 300);
+    state.buildingCounter = data.buildingCounter || 0;
+    const idMap = {};
+    for (const bData of (data.buildings || [])) {
+      const b = addBuilding(
+        bData.type, bData.x, bData.z,
+        bData.level || 1, bData.rotation || 0,
+        bData.name, true
+      );
+      b.id = bData.id;
+      idMap[bData.id] = b;
+      if (b.id > state.buildingCounter) state.buildingCounter = b.id;
+    }
+    for (const vData of (data.villagers || [])) {
+      const v = spawnVillager(vData.type, vData.x, vData.z, vData.name);
+      v.hunger = vData.hunger ?? 100;
+      if (vData.homeId && idMap[vData.homeId]) v.home = idMap[vData.homeId];
+      if (vData.workplaceId && idMap[vData.workplaceId]) v.workplace = idMap[vData.workplaceId];
+      v.customTask = vData.customTask || null;
+    }
+    for (const cData of (data.chickens || [])) {
+      const coop = idMap[cData.coopId];
+      if (!coop) continue;
+      const g = makeChickenMesh();
+      g.position.set(cData.x, 0, cData.z);
+      scene.add(g);
+      const ch = {
+        group: g, coop, target: null,
+        waitTimer: Math.random() * 2,
+        bob: Math.random() * 10,
+        speed: 0.55 + Math.random() * 0.35
+      };
+      g.userData.chickenRef = ch;
+      state.chickens.push(ch);
+    }
+    return true;
+  } catch (e) {
+    console.warn('Load failed', e);
+    return false;
+  }
+}
+
+setInterval(saveGame, 4000);
+window.addEventListener('beforeunload', saveGame);
+window.addEventListener('pagehide', saveGame);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveGame();
+});
+
+/* =========================================================
+   Таймеры над головами
+   ========================================================= */
+const _projVec = new THREE.Vector3();
+function updateTimers() {
+  el.timers.innerHTML = '';
+  for (const v of state.villagers) {
+    let label = '';
+    if (v.behaviorState === 'chopping') label = '🪓';
+    else if (v.behaviorState === 'fishing') label = '🎣';
+    else continue;
+    if (v.waitTimer <= 0) continue;
+    _projVec.copy(v.group.position);
+    _projVec.y += 2.4;
+    _projVec.project(camera);
+    if (_projVec.z > 1) continue;
+    const x = (_projVec.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-_projVec.y * 0.5 + 0.5) * window.innerHeight;
+    const div = document.createElement('div');
+    div.className = 'v-timer';
+    div.style.left = x + 'px';
+    div.style.top = y + 'px';
+    div.textContent = `${label} ${Math.ceil(v.waitTimer)}с`;
+    el.timers.appendChild(div);
+  }
 }
 
 function showConfirm({ title, body, confirmText = 'Подтвердить', danger = false, onConfirm }) {
@@ -828,18 +1526,20 @@ function showConfirm({ title, body, confirmText = 'Подтвердить', dang
       <h3>${title}</h3>
       <div class="modal-body">${body}</div>
       <div class="modal-actions">
-        <button class="mbtn cancel">Отмена</button>
-        <button class="mbtn ${danger ? 'danger' : 'confirm'}">${confirmText}</button>
+        <button class="mbtn cancel" type="button">Отмена</button>
+        <button class="mbtn ${danger ? 'danger' : 'confirm'} confirm-action" type="button">${confirmText}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
-  const close = () => overlay.remove();
-  overlay.querySelector('.cancel').onclick = close;
-  overlay.querySelector('.confirm').onclick = () => { close(); onConfirm && onConfirm(); };
+  const close = () => { if (overlay.parentNode) overlay.remove(); };
+  overlay.querySelector('.cancel').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); close(); });
+  overlay.querySelector('.confirm-action').addEventListener('click', (e) => {
+    e.preventDefault(); e.stopPropagation(); close();
+    if (typeof onConfirm === 'function') { try { onConfirm(); } catch (err) { console.error(err); } }
+  });
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.addEventListener('pointerdown', e => e.stopPropagation());
 }
-
-/* --------- окно ввода имени с проверкой уникальности --------- */
 function showNamePrompt(defaultName, title, onConfirm, exclude = null) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -851,131 +1551,131 @@ function showNamePrompt(defaultName, title, onConfirm, exclude = null) {
         <div class="name-error"></div>
       </div>
       <div class="modal-actions">
-        <button class="mbtn cancel">Отмена</button>
-        <button class="mbtn confirm">OK</button>
+        <button class="mbtn cancel" type="button">Отмена</button>
+        <button class="mbtn confirm" type="button">OK</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
-
   const input = overlay.querySelector('.name-input');
   const errEl = overlay.querySelector('.name-error');
-  input.focus();
-  input.select();
-
-  const close = () => overlay.remove();
+  input.focus(); input.select();
+  const close = () => { if (overlay.parentNode) overlay.remove(); };
   const confirm = () => {
     const val = input.value.trim();
     if (!val) { errEl.textContent = 'Введите имя'; return; }
     if (isNameTaken(val, exclude)) { errEl.textContent = 'Такое имя уже используется'; return; }
-    close();
-    onConfirm(val);
+    close(); if (onConfirm) onConfirm(val);
   };
   overlay.querySelector('.cancel').onclick = close;
   overlay.querySelector('.confirm').onclick = confirm;
   input.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 }
-
-/* --------- список жителей --------- */
-function showVillagerList() {
-  let html = `<h3>👥 Жители (${state.villagers.length})</h3>`;
-  if (state.villagers.length === 0) {
-    html += `<div class="modal-body">Нет жителей. Наня́ть можно в меню ➕.</div>
-      <div class="modal-actions"><button class="mbtn cancel">Закрыть</button></div>`;
+function renderList({ title, items, onItemClick, onItemRightClick, emptyText }) {
+  let html = `<h3>${title}</h3>`;
+  if (items.length === 0) {
+    html += `<div class="modal-body">${emptyText}</div>
+      <div class="modal-actions"><button class="mbtn cancel" type="button">Закрыть</button></div>`;
   } else {
     html += '<div class="picker-list">';
-    state.villagers.forEach((v, idx) => {
-      const h = Math.max(0, Math.round(v.hunger));
-      const hColor = h > 60 ? '#5ee08a' : h > 30 ? '#ffd66b' : '#ff7a7a';
-      html += `<button class="picker-item" data-idx="${idx}">
-        <span>${v.def.icon} <b>${v.name}</b>
-          <span class="sub" style="display:block;margin-top:2px">
-            ${v.home ? '🏠 ' + v.home.name : '🏠 нет'} ·
-            ${v.workplace ? '💼 ' + v.workplace.name : '💼 нет'}
-          </span>
-        </span>
-        <span style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;color:#8fa5b8">Сыт</span>
-          <span class="hunger-bar"><span style="width:${h}%;background:${hColor}"></span></span>
-        </span>
-      </button>`;
-    });
-    html += '</div>';
-    html += `<div class="modal-actions"><button class="mbtn cancel" style="flex:1">Закрыть</button></div>`;
+    for (const it of items) html += it;
+    html += '</div><div class="modal-actions"><button class="mbtn cancel" type="button" style="flex:1">Закрыть</button></div>';
   }
-
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `<div class="modal">${html}</div>`;
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-  const closeBtn = overlay.querySelector('.cancel');
-  if (closeBtn) closeBtn.onclick = () => overlay.remove();
-
+  const cb = overlay.querySelector('.cancel'); if (cb) cb.onclick = () => overlay.remove();
   overlay.querySelectorAll('.picker-item').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.idx, 10);
-      const v = state.villagers[idx];
-      if (v) { focusOn(v.group.position, 16); overlay.remove(); }
-    });
-    // ПКМ — открыть меню жителя
+    btn.addEventListener('click', () => { onItemClick && onItemClick(btn, overlay); });
     btn.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.idx, 10);
-      const v = state.villagers[idx];
+      e.preventDefault(); e.stopPropagation();
+      onItemRightClick && onItemRightClick(btn, overlay, e);
+    });
+  });
+}
+function showVillagerList() {
+  const items = state.villagers.map((v, idx) => {
+    const h = Math.max(0, Math.round(v.hunger));
+    const hc = h > 60 ? '#5ee08a' : h > 30 ? '#ffd66b' : '#ff7a7a';
+    const task = v.customTask === 'forest' ? '🪓 лес' :
+                 v.customTask === 'fish' ? '🎣 рыбалка' : '';
+    return `<button class="picker-item" data-idx="${idx}">
+      <span>${v.def.icon} <b>${v.name}</b>
+        <span class="sub" style="display:block;margin-top:2px">
+          ${v.home ? '🏠 ' + v.home.name : '🏠 нет'} ·
+          ${v.workplace ? '💼 ' + v.workplace.name : '💼 нет'}${task ? ' · ' + task : ''}
+        </span>
+      </span>
+      <span style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;color:#8fa5b8">Сыт</span>
+        <span class="hunger-bar"><span style="width:${h}%;background:${hc}"></span></span>
+      </span>
+    </button>`;
+  });
+  renderList({
+    title: `👥 Жители (${state.villagers.length})`,
+    items, emptyText: 'Нет жителей.',
+    onItemClick: (btn, overlay) => {
+      const v = state.villagers[parseInt(btn.dataset.idx, 10)];
+      if (v) { focusOn(v.group.position, 16); overlay.remove(); }
+    },
+    onItemRightClick: (btn, overlay, e) => {
+      const v = state.villagers[parseInt(btn.dataset.idx, 10)];
       if (!v) return;
       overlay.remove();
       openVillagerContextMenu(e.clientX, e.clientY, v);
-    });
+    }
   });
 }
-
-/* --------- список зданий --------- */
 function showBuildingList() {
-  let html = `<h3>🏠 Здания (${state.buildings.length})</h3>`;
-  if (state.buildings.length === 0) {
-    html += `<div class="modal-body">Нет зданий. Постройте в меню ➕.</div>
-      <div class="modal-actions"><button class="mbtn cancel">Закрыть</button></div>`;
-  } else {
-    html += '<div class="picker-list">';
-    for (const b of state.buildings) {
-      html += `<button class="picker-item" data-id="${b.id}">
-        <span>${b.def.icon} <b>${b.name}</b>
-          <span class="sub" style="display:block;margin-top:2px">${b.def.name} · Ур. ${b.level}</span>
-        </span>
-      </button>`;
-    }
-    html += '</div>';
-    html += `<div class="modal-actions"><button class="mbtn cancel" style="flex:1">Закрыть</button></div>`;
-  }
-
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<div class="modal">${html}</div>`;
-  document.body.appendChild(overlay);
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-  const closeBtn = overlay.querySelector('.cancel');
-  if (closeBtn) closeBtn.onclick = () => overlay.remove();
-
-  overlay.querySelectorAll('.picker-item').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = parseInt(btn.dataset.id, 10);
-      const b = state.buildings.find(x => x.id === id);
+  const list = state.buildings.filter(b => !b.def.isFence);
+  const items = list.map(b => {
+    const ch = b.type === 'coop' ? state.chickens.filter(c => c.coop === b).length : 0;
+    return `<button class="picker-item" data-id="${b.id}">
+      <span>${b.def.icon} <b>${b.name}</b>
+        <span class="sub" style="display:block;margin-top:2px">${b.def.name} · Ур. ${b.level}${b.type === 'coop' ? ' · 🐔 ' + ch : ''}</span>
+      </span>
+    </button>`;
+  });
+  renderList({
+    title: `🏠 Постройки (${list.length})`,
+    items, emptyText: 'Нет построек.',
+    onItemClick: (btn, overlay) => {
+      const b = state.buildings.find(x => x.id === parseInt(btn.dataset.id, 10));
       if (b) { focusOn(b.group.position, 18); overlay.remove(); }
-    });
-    btn.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      const id = parseInt(btn.dataset.id, 10);
-      const b = state.buildings.find(x => x.id === id);
+    },
+    onItemRightClick: (btn, overlay, e) => {
+      const b = state.buildings.find(x => x.id === parseInt(btn.dataset.id, 10));
       if (!b) return;
       overlay.remove();
       openBuildingContextMenu(e.clientX, e.clientY, b);
-    });
+    }
   });
 }
-
+function showEnvironmentList() {
+  const list = state.buildings.filter(b => b.def.isFence);
+  const items = list.map(b => `<button class="picker-item" data-id="${b.id}">
+      <span>🚧 <b>${b.name}</b>
+        <span class="sub" style="display:block;margin-top:2px">Забор</span>
+      </span>
+    </button>`);
+  renderList({
+    title: `🚧 Окружение (${list.length})`,
+    items, emptyText: 'Нет объектов окружения.',
+    onItemClick: (btn, overlay) => {
+      const b = state.buildings.find(x => x.id === parseInt(btn.dataset.id, 10));
+      if (b) { focusOn(b.group.position, 18); overlay.remove(); }
+    },
+    onItemRightClick: (btn, overlay, e) => {
+      const b = state.buildings.find(x => x.id === parseInt(btn.dataset.id, 10));
+      if (!b) return;
+      overlay.remove();
+      openBuildingContextMenu(e.clientX, e.clientY, b);
+    }
+  });
+}
 function focusOn(pos, dist) {
   controls.target.set(pos.x, 1, pos.z);
   const dir = new THREE.Vector3(0.7, 0.7, 0.7).normalize();
@@ -983,85 +1683,179 @@ function focusOn(pos, dist) {
   controls.update();
 }
 
-document.getElementById('list-villagers').addEventListener('click', showVillagerList);
-document.getElementById('list-buildings').addEventListener('click', showBuildingList);
+/* =========================================================
+   Мобильные модалки (компактная шапка)
+   ========================================================= */
+function openCompactResourcesModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>💰 Ресурсы</h3>
+      <div class="cm-grid">
+        <div class="cm-cell"><span class="cm-ico">💰</span><span><span class="cm-lbl">Деньги</span><b>${Math.floor(state.money).toLocaleString('ru-RU')}</b></span></div>
+        <div class="cm-cell"><span class="cm-ico">🌾</span><span><span class="cm-lbl">Еда</span><b>${Math.floor(state.food)}/${state.capFood}</b></span></div>
+        <div class="cm-cell"><span class="cm-ico">🪵</span><span><span class="cm-lbl">Дерево</span><b>${Math.floor(state.wood)}/${state.capWood}</b></span></div>
+        <div class="cm-cell"><span class="cm-ico">🐔</span><span><span class="cm-lbl">Куриц</span><b>${state.chickens.length}</b></span></div>
+        <div class="cm-cell"><span class="cm-ico">👥</span><span><span class="cm-lbl">Население</span><b>${state.villagers.length}/${state.housing}</b></span></div>
+        <div class="cm-cell"><span class="cm-ico">👷</span><span><span class="cm-lbl">Работники</span><b>${state.jobsFilled}/${state.jobsTotal}</b></span></div>
+      </div>
+      <div class="modal-actions"><button class="mbtn confirm" type="button" style="flex:1">Закрыть</button></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.confirm').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
 
-/* --------- инструкция --------- */
+function openCompactObjectsModal() {
+  const bCount = state.buildings.filter(b => !b.def.isFence).length;
+  const eCount = state.buildings.filter(b => b.def.isFence).length;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>📦 Объекты</h3>
+      <div class="cm-grid">
+        <div class="cm-cell"><span class="cm-ico">👥</span><span><span class="cm-lbl">Жители</span><b>${state.villagers.length}</b></span></div>
+        <div class="cm-cell"><span class="cm-ico">🏠</span><span><span class="cm-lbl">Постройки</span><b>${bCount}</b></span></div>
+        <div class="cm-cell"><span class="cm-ico">🚧</span><span><span class="cm-lbl">Окружение</span><b>${eCount}</b></span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="mbtn cancel" type="button" data-open="villagers" style="flex:1">👥 Жители</button>
+        <button class="mbtn cancel" type="button" data-open="buildings" style="flex:1">🏠 Постройки</button>
+        <button class="mbtn cancel" type="button" data-open="environment" style="flex:1">🚧 Окружение</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) { overlay.remove(); return; }
+    const btn = e.target.closest('[data-open]');
+    if (btn) {
+      const t = btn.dataset.open;
+      overlay.remove();
+      if (t === 'villagers') showVillagerList();
+      else if (t === 'buildings') showBuildingList();
+      else if (t === 'environment') showEnvironmentList();
+    }
+  });
+}
+
+function openCompactEconomyModal() {
+  const foodRate = signed(state.foodRate);
+  const woodRate = signed(state.woodRate);
+  const incomeRate = signed(state.income);
+  const foodCls = state.foodRate >= 0 ? 'pos' : 'neg';
+  const woodCls = state.woodRate >= 0 ? 'pos' : 'neg';
+  const incomeCls = state.income >= 0 ? 'pos' : 'neg';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>📊 Экономика</h3>
+      <div class="cm-grid">
+        <div class="cm-cell"><span class="cm-ico">🌾</span><span><span class="cm-lbl">Еда / сек</span><b class="${foodCls}">${foodRate}/с</b></span></div>
+        <div class="cm-cell"><span class="cm-ico">🪵</span><span><span class="cm-lbl">Дерево / сек</span><b class="${woodCls}">${woodRate}/с</b></span></div>
+        <div class="cm-cell" style="grid-column:1/-1"><span class="cm-ico">💰</span><span><span class="cm-lbl">Доход / сек</span><b class="${incomeCls}">${incomeRate}/с</b></span></div>
+      </div>
+      <div class="modal-actions"><button class="mbtn confirm" type="button" style="flex:1">Закрыть</button></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.confirm').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+document.getElementById('compact-res-btn').addEventListener('click', openCompactResourcesModal);
+document.getElementById('compact-obj-btn').addEventListener('click', openCompactObjectsModal);
+document.getElementById('compact-econ-btn').addEventListener('click', openCompactEconomyModal);
+
+/* =========================================================
+   Кнопки действий в шапке
+   ========================================================= */
+document.getElementById('save-btn').addEventListener('click', () => {
+  if (saveGame()) toast('💾 Прогресс сохранён', 'ok');
+  else toast('Не удалось сохранить', 'err');
+});
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  showConfirm({
+    title: '🗑️ Очистить прогресс?',
+    body: `Весь прогресс деревни будет <b>безвозвратно удалён</b>.<br>
+      <span class="desc">Игра перезапустится с чистого листа.</span>`,
+    confirmText: 'Очистить',
+    danger: true,
+    onConfirm: () => {
+      try {
+        localStorage.removeItem(SAVE_KEY);
+      } catch (e) {}
+      toast('Прогресс очищен · перезапуск…', 'warn');
+      setTimeout(() => location.reload(), 400);
+    }
+  });
+});
+
 document.getElementById('help-btn').addEventListener('click', () => {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
-    <div class="modal" style="width:min(620px,94vw)">
-      <h3>📖 Инструкция</h3>
+    <div class="modal" style="width:min(540px,94vw)">
+      <h3>📖 Управление</h3>
       <div class="modal-body">
         <div class="help-content">
           <div class="row"><span>ЛКМ + тянуть</span><b>Вращение камеры</b></div>
-          <div class="row"><span>ПКМ + тянуть</span><b>Перемещение камеры</b></div>
-          <div class="row"><span>ЛКМ по жителю + тянуть</span><b>Перетащить жителя</b></div>
           <div class="row"><span>ПКМ по объекту</span><b>Меню действий</b></div>
-          <div class="row"><span>ПКМ в списке объектов</span><b>Меню объекта</b></div>
-          <div class="row"><span>Колесо</span><b>Приближение</b></div>
-          <div class="row"><span><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></span><b>Перемещение камеры</b></div>
-          <div class="row"><span><kbd>Q</kbd> <kbd>E</kbd></span><b>Поворот здания при размещении</b></div>
+          <div class="row"><span>ПКМ в списке</span><b>Меню объекта</b></div>
+          <div class="row"><span>Колесо мыши</span><b>Приближение / отдаление</b></div>
+          <div class="row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><b>Перемещение камеры</b></div>
+          <div class="row"><span><kbd>Shift</kbd> / <kbd>Ctrl</kbd></span><b>Камера вверх / вниз</b></div>
+          <div class="row"><span><kbd>Q</kbd> / <kbd>E</kbd></span><b>Поворот здания</b></div>
           <div class="row"><span><kbd>Esc</kbd></span><b>Отмена действия</b></div>
-          <div class="row"><span>Кнопки слева</span><b>Списки жителей и зданий</b></div>
-          <div class="row"><span>Кнопка ➕</span><b>Здания, окружение, ресурсы, жители</b></div>
-          <div class="row"><span>Переименование</span><b>ПКМ по объекту → Переименовать</b></div>
-          <div class="row"><span style="color:#ffe090">⚠ Опасность</span><b>Лисы, волки и медведи</b></div>
+          <div class="row"><span>Кнопка ➕</span><b>Магазин и постройки</b></div>
+          <div class="row"><span>💾 в шапке</span><b>Ручное сохранение прогресса</b></div>
+          <div class="row"><span>🗑️ в шапке</span><b>Очистить сохранение</b></div>
         </div>
       </div>
-      <div class="modal-actions">
-        <button class="mbtn confirm" style="flex:1">Понятно</button>
-      </div>
+      <div class="modal-actions"><button class="mbtn confirm" type="button" style="flex:1">Понятно</button></div>
     </div>`;
   document.body.appendChild(overlay);
   overlay.querySelector('.confirm').onclick = () => overlay.remove();
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 });
 
+document.getElementById('list-villagers').addEventListener('click', showVillagerList);
+document.getElementById('list-buildings').addEventListener('click', showBuildingList);
+document.getElementById('list-environment').addEventListener('click', showEnvironmentList);
+
 /* =========================================================
    11. "+" МЕНЮ
    ========================================================= */
 function buildPlusMenu() {
   let html = '';
-
-  // Здания
-  html += '<div class="pm-section"><div class="pm-head">🏠 Здания</div><div class="pm-grid">';
-  for (const type of BUILDING_TYPES) {
-    const def = BUILDINGS[type];
-    html += `<button class="pm-item" data-action="build" data-type="${type}">
-      <span class="pm-name">${def.icon} ${def.name}</span>
-      <span class="pm-cost">${costString(def.cost)}</span>
-      <span class="pm-info">${def.info}</span>
-    </button>`;
+  for (const cat of BUILDING_CATEGORIES) {
+    html += `<div class="pm-section"><div class="pm-head">${cat.title}</div><div class="pm-grid">`;
+    for (const type of cat.types) {
+      const def = BUILDINGS[type];
+      html += `<button class="pm-item" data-action="build" data-type="${type}">
+        <span class="pm-name">${def.icon} ${def.name}</span>
+        <span class="pm-cost">${costString(def.cost)}</span>
+        <span class="pm-info">${def.info}</span>
+      </button>`;
+    }
+    html += '</div></div>';
   }
-  html += '</div></div>';
-
-  // Окружение
-  html += '<div class="pm-section"><div class="pm-head">🌳 Окружение</div><div class="pm-grid">';
-  for (const type of ENVIRONMENT_TYPES) {
-    const def = BUILDINGS[type];
-    html += `<button class="pm-item" data-action="build" data-type="${type}">
-      <span class="pm-name">${def.icon} ${def.name}</span>
-      <span class="pm-cost">${costString(def.cost)}</span>
-      <span class="pm-info">${def.info}</span>
-    </button>`;
+  for (const catKey in CATEGORIES) {
+    const items = Object.keys(SHOP_ITEMS).filter(k => SHOP_ITEMS[k].cat === catKey);
+    if (items.length === 0) continue;
+    html += `<div class="pm-section"><div class="pm-head">${CATEGORIES[catKey]}</div><div class="pm-grid">`;
+    for (const key of items) {
+      const it = SHOP_ITEMS[key];
+      html += `<button class="pm-item" data-action="buy" data-type="${key}">
+        <span class="pm-name">${it.icon} ${it.name}</span>
+        <span class="pm-cost">${costString(it.cost)}</span>
+        <span class="pm-info">${it.info}</span>
+      </button>`;
+    }
+    html += '</div></div>';
   }
-  html += '</div></div>';
-
-  // Ресурсы
-  html += '<div class="pm-section"><div class="pm-head">🍞 Ресурсы</div><div class="pm-grid">';
-  for (const key in SHOP_ITEMS) {
-    const it = SHOP_ITEMS[key];
-    html += `<button class="pm-item" data-action="buy" data-type="${key}">
-      <span class="pm-name">${it.icon} ${it.name}</span>
-      <span class="pm-cost">${costString(it.cost)}</span>
-      <span class="pm-info">${it.info}</span>
-    </button>`;
-  }
-  html += '</div></div>';
-
-  // Жители
   html += '<div class="pm-section"><div class="pm-head">👥 Жители</div><div class="pm-grid">';
   for (const type in VILLAGERS) {
     const def = VILLAGERS[type];
@@ -1072,13 +1866,10 @@ function buildPlusMenu() {
     </button>`;
   }
   html += '</div></div>';
-
   el.plusMenu.innerHTML = html;
-
   el.plusMenu.querySelectorAll('.pm-item').forEach(btn => {
     btn.addEventListener('click', () => {
-      const action = btn.dataset.action;
-      const type = btn.dataset.type;
+      const action = btn.dataset.action, type = btn.dataset.type;
       closePlusMenu();
       if (action === 'build') openBuildConfirm(type);
       else if (action === 'buy') openBuyConfirm(type);
@@ -1086,7 +1877,6 @@ function buildPlusMenu() {
     });
   });
 }
-
 function openPlusMenu() {
   closeContextMenu();
   el.plusMenu.classList.add('open');
@@ -1101,32 +1891,38 @@ document.getElementById('plus-btn').addEventListener('click', e => {
   if (el.plusMenu.classList.contains('open')) closePlusMenu();
   else openPlusMenu();
 });
-
-/* --------- подтверждение постройки --------- */
 function openBuildConfirm(type) {
   const def = BUILDINGS[type];
   const affordable = canAfford(def.cost);
+  let extra = '';
+  if (def.onWater) extra = '<span class="desc">⚠ Ставится на реке или у берега</span>';
+  else if (def.needsRiver) extra = '<span class="desc">⚠ Только у реки</span>';
+  if (def.isFence) extra = '<span class="desc">Режим непрерывной установки</span>';
   showConfirm({
     title: 'Подтверждение постройки',
     body: `Построить <b>${def.icon} ${def.name}</b>?<br>
       <span class="cost">Стоимость: ${costString(def.cost)}</span>
       <span class="desc">${def.info}</span>
-      <span class="desc">Q / E — поворот при размещении</span>
+      ${extra}
       ${affordable ? '' : '<span class="desc" style="color:#ff9090">⚠ Недостаточно ресурсов</span>'}`,
     confirmText: 'Построить',
     onConfirm: () => {
       if (!canAfford(def.cost)) { toast('Недостаточно ресурсов', 'err'); return; }
       showBuildGhost(type);
       updateTopButtons();
-      toast(`Выберите место · Q/E — поворот`, '');
+      toast(def.isFence ? 'Ставьте заборы · Esc — выход' : 'Выберите место · Q/E — поворот', '');
     }
   });
 }
-
-/* --------- подтверждение покупки ресурса --------- */
 function openBuyConfirm(key) {
   const it = SHOP_ITEMS[key];
   const affordable = canAfford(it.cost);
+  if (key === 'rifle' && state.hasGun) { toast('Ружьё уже куплено', 'err'); return; }
+  if (key === 'fishingrod' && state.hasFishingRod) { toast('Удочка уже куплена', 'err'); return; }
+  if (key === 'axe' && state.hasAxe) { toast('Топор уже куплен', 'err'); return; }
+  if (key === 'chicken' && state.buildings.filter(b => b.type === 'coop').length === 0) {
+    toast('Сначала постройте курятник', 'err'); return;
+  }
   showConfirm({
     title: 'Подтверждение покупки',
     body: `Купить <b>${it.icon} ${it.name}</b>?<br>
@@ -1136,15 +1932,17 @@ function openBuyConfirm(key) {
     confirmText: 'Купить',
     onConfirm: () => {
       if (!canAfford(it.cost)) { toast('Недостаточно денег', 'err'); return; }
+      if (key === 'chicken') {
+        const coops = state.buildings.filter(b => b.type === 'coop' && state.chickens.filter(c => c.coop === b).length < 10);
+        if (coops.length === 0) { toast('Все курятники полны', 'err'); return; }
+      }
       state.money -= it.cost.money || 0;
       state.wood -= it.cost.wood || 0;
       it.apply();
-      toast(`${it.icon} ${it.info}`, 'ok');
+      toast(`${it.icon} ${it.name} куплено`, 'ok');
     }
   });
 }
-
-/* --------- подтверждение найма жителя --------- */
 function openVillagerConfirm(type) {
   const def = VILLAGERS[type];
   const affordable = canAfford(def.cost);
@@ -1153,7 +1951,6 @@ function openVillagerConfirm(type) {
     body: `Нанять <b>${def.icon} ${def.name}</b>?<br>
       <span class="cost">Стоимость: ${costString(def.cost)}</span>
       <span class="desc">${def.info}</span>
-      <span class="desc">Имя будет присвоено автоматически.<br>Переименовать: ПКМ → Переименовать</span>
       ${affordable ? '' : '<span class="desc" style="color:#ff9090">⚠ Недостаточно ресурсов</span>'}`,
     confirmText: 'Нанять',
     onConfirm: () => {
@@ -1164,7 +1961,7 @@ function openVillagerConfirm(type) {
       state.wood -= def.cost.wood || 0;
       const v = spawnVillager(type, spot.x, spot.z);
       autoAssign(v);
-      toast(`${def.icon} ${v.name} прибыл(а) в деревню`, 'ok');
+      toast(`${def.icon} ${v.name} прибыл(а)`, 'ok');
     }
   });
 }
@@ -1172,16 +1969,18 @@ function openVillagerConfirm(type) {
 /* =========================================================
    12. ЖИТЕЛИ
    ========================================================= */
-function houseCapacity(house) { return (house.def.capacity || 0) * (house.level || 1); }
-function workplaceSlots(workplace) { return (workplace.def.jobs || 0) * (workplace.level || 1); }
-function getHouseOccupants(house) { return state.villagers.filter(v => v.home === house).length; }
-function getWorkersAt(workplace) { return state.villagers.filter(v => v.workplace === workplace).length; }
-
+function houseCapacity(h) {
+  if (h.def.capacities) return h.def.capacities[Math.min((h.level||1)-1, h.def.capacities.length-1)];
+  return (h.def.capacity || 0) * (h.level || 1);
+}
+function workplaceSlots(w) { return (w.def.jobs || 0) * (w.level || 1); }
+function getHouseOccupants(h) { return state.villagers.filter(v => v.home === h).length; }
+function getWorkersAt(w) { return state.villagers.filter(v => v.workplace === w).length; }
 function findFreeVillagerSpot() {
-  for (let i = 0; i < 60; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const d = 3 + Math.random() * 10;
+  for (let i = 0; i < 80; i++) {
+    const a = Math.random() * Math.PI * 2, d = 3 + Math.random() * 10;
     const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    if (isInRiver(x, z)) continue;
     let ok = true;
     for (const b of state.buildings) {
       if ((b.x - x) ** 2 + (b.z - z) ** 2 < (b.def.radius + 0.6) ** 2) { ok = false; break; }
@@ -1190,98 +1989,184 @@ function findFreeVillagerSpot() {
   }
   return null;
 }
-
 function spawnVillager(type, x, z, name = null) {
   const def = VILLAGERS[type];
   const group = createVillagerMesh(type);
   group.position.set(x, 0, z);
   scene.add(group);
-  const finalName = name || nextVillagerName(type);
   const v = {
-    type, def, group, x, z, name: finalName,
-    home: null, workplace: null,
-    behaviorState: 'idle',
-    target: null, waitTimer: Math.random() * 1.5,
-    moveTimer: 0,
+    type, def, group, x, z, name: name || nextVillagerName(type),
+    home: null, workplace: null, behaviorState: 'idle',
+    target: null, waitTimer: Math.random() * 1.5, moveTimer: 0,
     bob: Math.random() * 10,
     speed: type === 'man' ? 1.55 : 1.35,
     homeAngle: Math.random() * Math.PI * 2,
     workAngle: Math.random() * Math.PI * 2,
-    hunger: 100
+    hunger: 100,
+    customTask: null, taskSpot: null,
+    _toolMesh: null,
+    chopPhase: 0,
+    huntingTarget: null
   };
   group.userData.villagerRef = v;
   state.villagers.push(v);
   return v;
 }
-
 function findVillager(obj) {
-  while (obj) {
-    if (obj.userData && obj.userData.villagerRef) return obj.userData.villagerRef;
-    obj = obj.parent;
-  }
+  while (obj) { if (obj.userData && obj.userData.villagerRef) return obj.userData.villagerRef; obj = obj.parent; }
   return null;
 }
-
 function autoAssign(v) {
-  const houses = state.buildings.filter(b => b.def.capacity > 0 && getHouseOccupants(b) < houseCapacity(b));
+  const houses = state.buildings.filter(b => (b.def.capacities || b.def.capacity) && getHouseOccupants(b) < houseCapacity(b));
   if (houses.length) v.home = houses[0];
-  const jobs = state.buildings.filter(b => b.def.jobs > 0 && getWorkersAt(b) < workplaceSlots(b));
+  const jobs = state.buildings.filter(b =>
+    b.def.jobs > 0 && getWorkersAt(b) < workplaceSlots(b) && canWorkAt(v, b)
+  );
   if (jobs.length) v.workplace = jobs[0];
 }
-
 function getSpotOutside(building, angle) {
   const r = building.def.radius * 0.75 + 0.8;
-  return {
-    x: building.x + Math.cos(angle) * r,
-    z: building.z + Math.sin(angle) * r
-  };
+  const x = building.x + Math.cos(angle) * r;
+  const z = building.z + Math.sin(angle) * r;
+  if (isInRiver(x, z)) return { x, z: RIVER_Z - RIVER_HALF_WIDTH - 0.6 };
+  return { x, z };
 }
-
+function getForestSpot(v) {
+  if (!v.taskSpot) {
+    v.taskSpot = { x: -BOUND + 6 + Math.random() * 10, z: -BOUND + 6 + Math.random() * 10 };
+  }
+  return { x: v.taskSpot.x, z: v.taskSpot.z };
+}
+function getFishingSpot(v) {
+  const piers = state.buildings.filter(b => b.type === 'pier');
+  if (piers.length) {
+    const p = piers[0];
+    const rot = p.rotation || 0;
+    const dist = 1.5;
+    v.taskSpot = {
+      x: p.x + Math.sin(rot) * dist,
+      z: p.z + Math.cos(rot) * dist,
+      onPier: true,
+      pier: p
+    };
+  } else if (!v.taskSpot) {
+    v.taskSpot = { x: (Math.random() - 0.5) * 2 * (BOUND - 12), z: RIVER_Z - RIVER_HALF_WIDTH - 0.8 };
+  }
+  return { x: v.taskSpot.x, z: v.taskSpot.z };
+}
+function avoidRiver(pos) {
+  for (const b of state.buildings) {
+    if (b.type !== 'pier') continue;
+    if (isOnPierDeck(pos.x, pos.z, b)) return;
+  }
+  const d = pos.z - RIVER_Z, halfW = RIVER_HALF_WIDTH + 0.35;
+  if (Math.abs(d) < halfW) pos.z = RIVER_Z + (d >= 0 ? halfW : -halfW);
+}
 function updateVillagers(dt) {
   for (const v of state.villagers) {
-    if (v === draggingVillager) continue;
-
     v.hunger -= dt * 0.35;
     if (v.hunger < 0) v.hunger = 0;
     if (v.hunger <= 0) { v._dead = true; continue; }
-
+    if (v.behaviorState === 'fishing' && v.taskSpot && v.taskSpot.pier) {
+      const p = v.taskSpot.pier;
+      if (!state.buildings.includes(p)) {
+        v.behaviorState = 'idle';
+        v.customTask = null;
+        v.taskSpot = null;
+        v.waitTimer = 1;
+        equipTool(v, null);
+      } else {
+        const rot = p.rotation || 0;
+        const dist = 1.5;
+        const newX = p.x + Math.sin(rot) * dist;
+        const newZ = p.z + Math.cos(rot) * dist;
+        if (Math.hypot(newX - v.taskSpot.x, newZ - v.taskSpot.z) > 0.4) {
+          v.taskSpot.x = newX;
+          v.taskSpot.z = newZ;
+          v.target = { x: newX, z: newZ };
+          v.behaviorState = 'toFish';
+          v.waitTimer = 0;
+          equipTool(v, null);
+          toast(`🎣 ${v.name} переходит на новое место`, '');
+        }
+      }
+    }
+    if (state.hasGun && v.type === 'man') {
+      const bear = state.animals.find(a => a.type === 'bear' && !a.peaceful);
+      if (bear) {
+        if (v.behaviorState !== 'hunting') {
+          v.behaviorState = 'hunting';
+          v.huntingTarget = bear;
+          v.customTask = null;
+          v.taskSpot = null;
+          equipTool(v, null);
+          v.waitTimer = 0;
+          v.moveTimer = 0;
+        }
+        v.huntingTarget = bear;
+        v.target = { x: bear.group.position.x, z: bear.group.position.z };
+        v.waitTimer = 0;
+      } else if (v.behaviorState === 'hunting') {
+        v.behaviorState = 'idle';
+        v.huntingTarget = null;
+        v.target = null;
+        v.waitTimer = 1;
+      }
+    }
     if (v.waitTimer > 0) {
       v.waitTimer -= dt;
-      v.group.position.y = 0;
+      let baseY = getPierDeckY(v.group.position.x, v.group.position.z);
+      if (v.behaviorState === 'chopping' && v._toolMesh) {
+        v.chopPhase += dt * 6;
+        const swing = Math.sin(v.chopPhase);
+        v._toolMesh.rotation.x = swing * 0.6;
+      } else if (v.behaviorState === 'fishing' && v._toolMesh) {
+        v.chopPhase += dt * 2.5;
+        v._toolMesh.rotation.x = Math.sin(v.chopPhase) * 0.06;
+      } else if (v.behaviorState === 'working') {
+        v.chopPhase += dt * 5;
+        baseY += Math.abs(Math.sin(v.chopPhase)) * 0.05;
+      }
+      v.group.position.y = baseY;
+      if (v.waitTimer <= 0 && (v.behaviorState === 'chopping' || v.behaviorState === 'fishing')) {
+        const wasFishing = v.behaviorState === 'fishing';
+        v.customTask = null; v.taskSpot = null;
+        equipTool(v, null);
+        v.behaviorState = 'idle';
+        v.waitTimer = 1.5;
+        if (wasFishing) toast(`🎣 ${v.name} вернулся с рыбалки`, 'ok');
+        else toast(`🪓 ${v.name} вернулся из леса`, 'ok');
+      }
       continue;
     }
-
     if (!v.target) decideVillagerAction(v);
     if (!v.target) continue;
-
     const dx = v.target.x - v.group.position.x;
     const dz = v.target.z - v.group.position.z;
     const dist = Math.hypot(dx, dz);
-
     v.moveTimer += dt;
-    if (v.moveTimer > 30) { v.target = null; v.moveTimer = 0; v.behaviorState = 'idle'; continue; }
-
-    if (dist < 0.4) {
-      v.target = null;
-      v.moveTimer = 0;
-      v.x = v.group.position.x;
-      v.z = v.group.position.z;
-      onVillagerArrive(v);
-      continue;
+    if (v.moveTimer > 90) { v.target = null; v.moveTimer = 0; v.behaviorState = 'idle'; continue; }
+    const stopDist = v.behaviorState === 'hunting' ? 2.0 : 0.4;
+    if (dist < stopDist) {
+      if (v.behaviorState === 'hunting') {
+        v.group.rotation.y = Math.atan2(dx, dz);
+        v.bob += dt * 9;
+        v.group.position.y = getPierDeckY(v.group.position.x, v.group.position.z);
+        continue;
+      }
+      v.target = null; v.moveTimer = 0;
+      v.x = v.group.position.x; v.z = v.group.position.z;
+      onVillagerArrive(v); continue;
     }
-
     const step = Math.min(v.speed * dt, dist);
-    const nx = v.group.position.x + (dx / dist) * step;
-    const nz = v.group.position.z + (dz / dist) * step;
-    v.group.position.x = nx;
-    v.group.position.z = nz;
+    v.group.position.x += (dx / dist) * step;
+    v.group.position.z += (dz / dist) * step;
     v.group.rotation.y = Math.atan2(dx, dz);
     v.bob += dt * 9;
-    v.group.position.y = Math.abs(Math.sin(v.bob)) * 0.06;
-
-    avoidBuildings(v.group.position);
+    const groundY = getPierDeckY(v.group.position.x, v.group.position.z);
+    v.group.position.y = groundY + Math.abs(Math.sin(v.bob)) * 0.06;
+    avoidRiver(v.group.position);
   }
-
   for (let i = state.villagers.length - 1; i >= 0; i--) {
     const v = state.villagers[i];
     if (v._dead) {
@@ -1292,40 +2177,15 @@ function updateVillagers(dt) {
     }
   }
 }
-
-function avoidBuildings(pos) {
-  for (const b of state.buildings) {
-    if (b.def.isFence) continue;
-    const r = b.def.radius * 0.75 + 0.5;
-    const dx = pos.x - b.x;
-    const dz = pos.z - b.z;
-    const d = Math.hypot(dx, dz);
-    if (d < r) {
-      if (d > 0.01) {
-        pos.x = b.x + (dx / d) * r;
-        pos.z = b.z + (dz / d) * r;
-      } else {
-        pos.x = b.x + r;
-      }
-    }
-  }
-}
-
 function decideVillagerAction(v) {
-  if (v.hunger < 45) {
-    if (state.food >= 15) {
-      const eater = pickEatingSpot();
-      if (eater) {
-        v.target = eater.spot;
-        v.behaviorState = 'toEat';
-        return;
-      }
-    }
+  if (v.behaviorState === 'hunting') return;
+  if (v.customTask === 'forest') { v.target = getForestSpot(v); v.behaviorState = 'toForest'; return; }
+  if (v.customTask === 'fish') { v.target = getFishingSpot(v); v.behaviorState = 'toFish'; return; }
+  if (v.hunger < 45 && state.food >= 15) {
+    const eater = pickEatingSpot();
+    if (eater) { v.target = eater.spot; v.behaviorState = 'toEat'; return; }
   }
-
-  const hasWork = !!v.workplace;
-  const hasHome = !!v.home;
-
+  const hasWork = !!v.workplace, hasHome = !!v.home;
   if (hasWork && hasHome) {
     if (v.behaviorState === 'working') {
       v.homeAngle = Math.random() * Math.PI * 2;
@@ -1336,7 +2196,6 @@ function decideVillagerAction(v) {
       v.target = getSpotOutside(v.workplace, v.workAngle);
       v.behaviorState = 'toWork';
     } else if (v.behaviorState === 'toWork' || v.behaviorState === 'toHome') {
-      // продолжаем
     } else {
       v.workAngle = Math.random() * Math.PI * 2;
       v.target = getSpotOutside(v.workplace, v.workAngle);
@@ -1355,48 +2214,52 @@ function decideVillagerAction(v) {
     v.behaviorState = 'wandering';
   }
 }
-
 function pickEatingSpot() {
-  const markets = state.buildings.filter(b => b.type === 'market');
-  let target = markets[0];
-  if (!target) target = state.buildings.filter(b => b.def.capacity > 0)[0];
+  const m = state.buildings.filter(b => b.type === 'market');
+  let target = m[0] || state.buildings.filter(b => b.def.capacities || b.def.capacity)[0];
   if (!target) return null;
-  const angle = Math.random() * Math.PI * 2;
-  return { spot: getSpotOutside(target, angle), angle };
+  return { spot: getSpotOutside(target, Math.random() * Math.PI * 2) };
 }
-
 function pickRandomSpot() {
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 30; i++) {
     const x = (Math.random() - 0.5) * 2 * (BOUND - 6);
     const z = (Math.random() - 0.5) * 2 * (BOUND - 6);
+    if (isInRiver(x, z)) continue;
     let ok = true;
     for (const b of state.buildings) {
-      if (b.def.isFence) continue;
       if ((b.x - x) ** 2 + (b.z - z) ** 2 < (b.def.radius + 0.8) ** 2) { ok = false; break; }
     }
     if (ok) return { x, z };
   }
   return { x: 0, z: 0 };
 }
-
 function onVillagerArrive(v) {
+  if (v.behaviorState === 'toForest') {
+    v.behaviorState = 'chopping';
+    v.waitTimer = 120;
+    v.chopPhase = 0;
+    equipTool(v, 'axe');
+    toast(`🪓 ${v.name} рубит лес (2 мин)`, '');
+    return;
+  }
+  if (v.behaviorState === 'toFish') {
+    v.behaviorState = 'fishing';
+    v.waitTimer = 120;
+    v.chopPhase = 0;
+    equipTool(v, 'rod');
+    toast(`🎣 ${v.name} рыбачит (2 мин)`, '');
+    return;
+  }
   if (v.behaviorState === 'toEat') {
-    if (state.food >= 15) {
-      state.food -= 15;
-      v.hunger = 100;
-      toast(`${v.def.icon} ${v.name} поел(а)`, '');
-    }
-    v.behaviorState = 'idle';
-    v.waitTimer = 1 + Math.random() * 2;
+    if (state.food >= 15) { state.food -= 15; v.hunger = 100; toast(`${v.def.icon} ${v.name} поел(а)`, ''); }
+    v.behaviorState = 'idle'; v.waitTimer = 1 + Math.random() * 2;
   } else if (v.behaviorState === 'toWork') {
-    v.behaviorState = 'working';
-    v.waitTimer = 8 + Math.random() * 8;
+    v.behaviorState = 'working'; v.waitTimer = 8 + Math.random() * 8;
+    v.chopPhase = 0;
   } else if (v.behaviorState === 'toHome') {
-    v.behaviorState = 'resting';
-    v.waitTimer = 9 + Math.random() * 10;
+    v.behaviorState = 'resting'; v.waitTimer = 9 + Math.random() * 10;
   } else {
-    v.behaviorState = 'idle';
-    v.waitTimer = 1.5 + Math.random() * 2.5;
+    v.behaviorState = 'idle'; v.waitTimer = 1.5 + Math.random() * 2.5;
   }
   v.moveTimer = 0;
 }
@@ -1404,24 +2267,24 @@ function onVillagerArrive(v) {
 /* =========================================================
    13. ЖИВОТНЫЕ
    ========================================================= */
-function spawnAnimal() {
+function spawnAnimal(forcedType = null) {
   const hasCoop = state.buildings.some(b => b.type === 'coop');
-  const available = Object.keys(ANIMAL_TYPES).filter(k => {
-    const t = ANIMAL_TYPES[k];
-    if (t.needsCoop && !hasCoop) return false;
-    return true;
-  });
-  if (available.length === 0) return null;
-
-  let total = 0;
-  for (const k of available) total += ANIMAL_TYPES[k].weight;
-  let r = Math.random() * total;
-  let chosen = available[0];
-  for (const k of available) {
-    r -= ANIMAL_TYPES[k].weight;
-    if (r <= 0) { chosen = k; break; }
+  let avail;
+  if (forcedType) {
+    avail = [forcedType];
+  } else {
+    avail = Object.keys(ANIMAL_TYPES).filter(k => {
+      const t = ANIMAL_TYPES[k];
+      if (t.weight <= 0) return false;
+      if (t.needsCoop && !hasCoop) return false;
+      return true;
+    });
   }
-
+  if (avail.length === 0) return null;
+  let total = 0;
+  for (const k of avail) total += ANIMAL_TYPES[k].weight;
+  let r = Math.random() * total, chosen = avail[0];
+  for (const k of avail) { r -= ANIMAL_TYPES[k].weight; if (r <= 0) { chosen = k; break; } }
   const def = ANIMAL_TYPES[chosen];
   const mesh = ANIMAL_MESHES[chosen]();
   const side = Math.floor(Math.random() * 4);
@@ -1433,57 +2296,126 @@ function spawnAnimal() {
   else { x = e; z = (Math.random() * 2 - 1) * e; }
   mesh.position.set(x, 0, z);
   scene.add(mesh);
-
+  const peaceful = Math.random() < 0.4;
   let targetBuilding = null;
-  if (def.target === 'coop') {
-    const coops = state.buildings.filter(b => b.type === 'coop');
-    if (coops.length) targetBuilding = coops[Math.floor(Math.random() * coops.length)];
-  } else if (def.target === 'house') {
-    const houses = state.buildings.filter(b => b.def.capacity > 0);
-    if (houses.length) targetBuilding = houses[Math.floor(Math.random() * houses.length)];
+  let target = null;
+  if (peaceful) {
+    target = { x: (Math.random() - 0.5) * BOUND, z: (Math.random() - 0.5) * BOUND };
+  } else {
+    if (def.target === 'coop') {
+      const coops = state.buildings.filter(b => b.type === 'coop');
+      if (coops.length) targetBuilding = coops[Math.floor(Math.random() * coops.length)];
+    } else {
+      const houses = state.buildings.filter(b => (b.def.capacities || b.def.capacity));
+      if (houses.length) targetBuilding = houses[Math.floor(Math.random() * houses.length)];
+    }
+    if (!targetBuilding) {
+      target = { x: (Math.random() - 0.5) * BOUND, z: (Math.random() - 0.5) * BOUND };
+    } else {
+      target = { x: targetBuilding.x, z: targetBuilding.z };
+    }
   }
-  if (!targetBuilding) { scene.remove(mesh); return null; }
-
   const a = {
-    type: chosen, def, group: mesh,
-    target: { x: targetBuilding.x, z: targetBuilding.z },
-    targetBuilding,
+    type: chosen, def, group: mesh, target, targetBuilding, peaceful,
+    peacefulStopsLeft: peaceful ? 1 + Math.floor(Math.random() * 2) : 0,
     state: 'approaching',
-    leaveTimer: 0, bob: 0, killCooldown: 0
+    leaveTimer: 0, bob: 0, killCooldown: 0, shootCooldown: 0,
+    hp: def.hp, attackFence: null, attackTimer: 0,
+    spawnTime: performance.now()
   };
   mesh.userData.animalRef = a;
   state.animals.push(a);
-  toast(`${def.icon} ${def.name} приближается к деревне!`, 'warn');
+  if (peaceful) toast(`${def.icon} ${def.name} проходит мимо деревни`, '');
+  else toast(`${def.icon} ${def.name} приближается к деревне!`, 'warn');
   return a;
 }
-
+function fireTracer(from, to) {
+  const g = new THREE.BufferGeometry().setFromPoints([from, to]);
+  const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xffee44 }));
+  scene.add(line);
+  setTimeout(() => { scene.remove(line); line.geometry.dispose(); line.material.dispose(); }, 130);
+}
 function updateAnimals(dt) {
   for (let i = state.animals.length - 1; i >= 0; i--) {
     const a = state.animals[i];
     const g = a.group;
-
+    if (a.targetBuilding && !state.buildings.includes(a.targetBuilding)) {
+      a.state = 'leaving';
+      const side = Math.floor(Math.random() * 4);
+      const e = BOUND + 5;
+      let lx, lz;
+      if (side === 0) { lx = (Math.random() * 2 - 1) * e; lz = -e; }
+      else if (side === 1) { lx = (Math.random() * 2 - 1) * e; lz = e; }
+      else if (side === 2) { lx = -e; lz = (Math.random() * 2 - 1) * e; }
+      else { lx = e; lz = (Math.random() * 2 - 1) * e; }
+      a.leavePos = { x: lx, z: lz };
+      continue;
+    }
+    if (a.targetBuilding && a.state !== 'leaving' && a.state !== 'atTarget') {
+      if (a.target.x !== a.targetBuilding.x || a.target.z !== a.targetBuilding.z) {
+        a.target.x = a.targetBuilding.x;
+        a.target.z = a.targetBuilding.z;
+      }
+    }
+    if (a.type === 'bear' && performance.now() - a.spawnTime > 300000) {
+      toast(`🐻 Медведь ушёл из деревни`, 'warn');
+      scene.remove(g); g.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+      state.animals.splice(i, 1); continue;
+    }
+    if (state.hasGun) {
+      a.shootCooldown -= dt;
+      if (a.shootCooldown <= 0) {
+        for (const v of state.villagers) {
+          if (v.type !== 'man' || v._dead) continue;
+          const d = Math.hypot(v.group.position.x - g.position.x, v.group.position.z - g.position.z);
+          if (d < 10) {
+            fireTracer(new THREE.Vector3(v.group.position.x, 1.4, v.group.position.z),
+                       new THREE.Vector3(g.position.x, 1.0, g.position.z));
+            a.hp--; a.shootCooldown = 1.5;
+            if (a.hp <= 0) {
+              const reward = a.def.reward || 0;
+              if (reward > 0) {
+                const added = Math.min(reward, state.capFood - state.food);
+                state.food += added;
+                toast(`🎯 ${v.name} убил(а) ${a.def.icon} ${a.def.name}! +${Math.round(added)} 🌾`, 'ok');
+              } else {
+                toast(`🎯 ${v.name} убил(а) ${a.def.icon} ${a.def.name}!`, 'ok');
+              }
+              scene.remove(g); g.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+              state.animals.splice(i, 1);
+            } else {
+              toast(`🎯 ${v.name} попал(а) в ${a.def.name} (осталось ${a.hp})`, '');
+            }
+            break;
+          }
+        }
+      }
+    }
+    if (!state.animals.includes(a)) continue;
     if (a.state === 'leaving') {
-      const dx = a.leavePos.x - g.position.x;
-      const dz = a.leavePos.z - g.position.z;
+      const dx = a.leavePos.x - g.position.x, dz = a.leavePos.z - g.position.z;
       const dist = Math.hypot(dx, dz);
       if (dist < 0.6) {
-        scene.remove(g);
-        g.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
-        state.animals.splice(i, 1);
-        continue;
+        scene.remove(g); g.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+        state.animals.splice(i, 1); continue;
       }
       const step = Math.min(a.def.speed * dt, dist);
       g.position.x += (dx / dist) * step;
       g.position.z += (dz / dist) * step;
       g.rotation.y = Math.atan2(dx, dz);
-      a.bob += dt * 10;
-      g.position.y = Math.abs(Math.sin(a.bob)) * 0.05;
+      a.bob += dt * 10; g.position.y = Math.abs(Math.sin(a.bob)) * 0.05;
       continue;
     }
-
     if (a.state === 'atTarget') {
       a.leaveTimer -= dt;
       if (a.leaveTimer <= 0) {
+        if (a.peaceful && a.peacefulStopsLeft > 0) {
+          a.peacefulStopsLeft--;
+          a.target = { x: (Math.random() - 0.5) * BOUND, z: (Math.random() - 0.5) * BOUND };
+          a.state = 'approaching';
+          a.leaveTimer = 0;
+          continue;
+        }
         const side = Math.floor(Math.random() * 4);
         const e = BOUND + 5;
         let lx, lz;
@@ -1491,61 +2423,77 @@ function updateAnimals(dt) {
         else if (side === 1) { lx = (Math.random() * 2 - 1) * e; lz = e; }
         else if (side === 2) { lx = -e; lz = (Math.random() * 2 - 1) * e; }
         else { lx = e; lz = (Math.random() * 2 - 1) * e; }
-        a.state = 'leaving';
-        a.leavePos = { x: lx, z: lz };
+        a.state = 'leaving'; a.leavePos = { x: lx, z: lz };
       }
       continue;
     }
-
-    const dx = a.target.x - g.position.x;
-    const dz = a.target.z - g.position.z;
+    const dx = a.target.x - g.position.x, dz = a.target.z - g.position.z;
     const dist = Math.hypot(dx, dz);
-
     if (dist < 2.5) {
       a.state = 'atTarget';
-      a.leaveTimer = 4 + Math.random() * 4;
-      onAnimalReachTarget(a);
+      a.leaveTimer = 3 + Math.random() * 4;
+      if (!a.peaceful) onAnimalReachTarget(a);
       continue;
     }
-
-    const step = Math.min(a.def.speed * dt, dist);
-    g.position.x += (dx / dist) * step;
-    g.position.z += (dz / dist) * step;
+    const stepLen = Math.min(a.def.speed * dt, dist);
+    const nx = g.position.x + (dx / dist) * stepLen;
+    const nz = g.position.z + (dz / dist) * stepLen;
+    if (a.type === 'bear' || a.type === 'fox' || a.type === 'wolf') {
+      let blockingFence = null;
+      for (const b of state.buildings) {
+        if (!b.def.isFence) continue;
+        if (Math.hypot(nx - b.x, nz - b.z) < b.def.radius + 0.9) { blockingFence = b; break; }
+      }
+      if (blockingFence) {
+        if (a.attackFence !== blockingFence) {
+          a.attackFence = blockingFence; a.attackTimer = 0;
+          const verb = a.type === 'bear' ? 'грызёт' : 'ломает';
+          toast(`${a.def.icon} ${a.def.name} ${verb} ${blockingFence.name}!`, 'warn');
+        }
+        a.attackTimer += dt;
+        const breakTime = a.type === 'bear' ? 30 : 60;
+        if (a.attackTimer >= breakTime) {
+          toast(`${a.def.icon} ${a.def.name} разрушил(а) ${blockingFence.name}!`, 'err');
+          scene.remove(blockingFence.group);
+          blockingFence.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+          const bi = state.buildings.indexOf(blockingFence);
+          if (bi >= 0) state.buildings.splice(bi, 1);
+          a.attackFence = null; a.attackTimer = 0;
+        }
+        a.bob += dt * 4; g.position.y = Math.abs(Math.sin(a.bob)) * 0.04;
+        continue;
+      } else { a.attackFence = null; a.attackTimer = 0; }
+    }
+    g.position.x = nx;
+    g.position.z = nz;
     g.rotation.y = Math.atan2(dx, dz);
     a.bob += dt * 10;
     g.position.y = Math.abs(Math.sin(a.bob)) * 0.05;
-
-    if (a.type === 'bear') {
+    if (a.type === 'bear' && !a.peaceful) {
       a.killCooldown -= dt;
       if (a.killCooldown <= 0) {
         for (const v of state.villagers) {
           if (v._dead) continue;
-          const vd = Math.hypot(v.group.position.x - g.position.x, v.group.position.z - g.position.z);
-          if (vd < 1.8) {
-            v._dead = true;
-            toast(`🐻 ${v.name} убит(а) медведем!`, 'err');
-            a.killCooldown = 2;
-            break;
+          if (Math.hypot(v.group.position.x - g.position.x, v.group.position.z - g.position.z) < 1.8) {
+            v._dead = true; toast(`🐻 ${v.name} убит(а) медведем!`, 'err');
+            a.killCooldown = 2; break;
           }
         }
       }
     }
   }
 }
-
 function onAnimalReachTarget(a) {
   if (a.type === 'bear') {
     const steal = Math.min(state.food, 40);
-    if (steal > 0) {
-      state.food -= steal;
-      toast(`🐻 Медведь съел ${Math.round(steal)} еды!`, 'err');
-    } else {
-      toast('🐻 Медведь порылся в кладовой, но еды не нашёл', '');
-    }
+    if (steal > 0) { state.food -= steal; toast(`🐻 Медведь съел ${Math.round(steal)} еды!`, 'err'); }
+    else toast('🐻 Медведь порылся в кладовой', '');
   } else if (a.type === 'fox' || a.type === 'wolf') {
-    if (a.targetBuilding) {
+    if (a.targetBuilding && a.targetBuilding.type === 'coop') {
+      const killed = killChickenNear(a.targetBuilding);
       a.targetBuilding.frightenedUntil = performance.now() / 1000 + 25;
-      toast(`${a.def.icon} ${a.def.name} напугал(а) кур в ${a.targetBuilding.name}!`, 'warn');
+      if (killed) toast(`${a.def.icon} ${a.def.name} съел(а) курицу из ${a.targetBuilding.name}!`, 'err');
+      else toast(`${a.def.icon} ${a.def.name} напугал(а) кур в ${a.targetBuilding.name}!`, 'warn');
     }
   }
 }
@@ -1553,179 +2501,210 @@ function onAnimalReachTarget(a) {
 /* =========================================================
    14. КОНТЕКСТНОЕ МЕНЮ
    ========================================================= */
+function closeContextMenu() {
+  el.ctxMenu.classList.remove('open');
+  el.ctxMenu.innerHTML = '';
+}
+function positionCtxMenu(sx, sy) {
+  el.ctxMenu.classList.add('open');
+  const rect = el.ctxMenu.getBoundingClientRect();
+  el.ctxMenu.style.left = Math.min(sx, window.innerWidth - rect.width - 8) + 'px';
+  el.ctxMenu.style.top = Math.min(sy, window.innerHeight - rect.height - 8) + 'px';
+}
+function handleCtxAction(act, target) {
+  closeContextMenu();
+  if (target.kind === 'building') {
+    const b = target.ref;
+    if (!state.buildings.includes(b)) return;
+    if (act === 'rename') {
+      showNamePrompt(b.name, 'Имя постройки', (newName) => {
+        const old = b.name; b.name = newName;
+        toast(`✏️ "${old}" → "${newName}"`, 'ok');
+      }, b);
+    } else if (act === 'move') {
+      showMoveGhost(b); updateTopButtons();
+      toast('Кликните по земле · Q/E — поворот', '');
+    } else if (act === 'rotate') {
+      b.rotation = (b.rotation || 0) + Math.PI / 4;
+      b.group.rotation.y = b.rotation;
+      toast(`🔄 ${b.name}`, '');
+    } else if (act === 'upgrade') { confirmUpgrade(b); }
+    else if (act === 'buy-chicken') {
+      if (state.money < 30) { toast('Недостаточно денег', 'err'); return; }
+      if (state.chickens.filter(c => c.coop === b).length >= 10) { toast('Курятник полон', 'err'); return; }
+      state.money -= 30; addChickenToCoop(b);
+      toast('🐔 Курица добавлена', 'ok');
+    } else if (act === 'delete') { confirmDelete(b); }
+  } else if (target.kind === 'villager') {
+    const v = target.ref;
+    if (!state.villagers.includes(v)) return;
+    if (act === 'rename') {
+      showNamePrompt(v.name, 'Имя жителя', (newName) => {
+        const old = v.name; v.name = newName;
+        toast(`✏️ "${old}" → "${newName}"`, 'ok');
+      }, v);
+    } else if (act === 'assign-home') showHomePicker(v);
+    else if (act === 'assign-work') showWorkPicker(v);
+    else if (act === 'fire') {
+      if (v.workplace) {
+        const n = v.workplace.name;
+        v.workplace = null; v.target = null; v.behaviorState = 'idle';
+        toast(`${v.name} уволен(а) с ${n}`, '');
+      }
+    } else if (act === 'send-home') sendVillagerHome(v);
+    else if (act === 'send-work') sendVillagerWork(v);
+    else if (act === 'feed') {
+      if (state.food >= 15) { state.food -= 15; v.hunger = 100; toast(`${v.name} поел(а)`, 'ok'); }
+    } else if (act === 'send-forest') {
+      if (!state.hasAxe) { toast('Нужен топор (в магазине)', 'err'); return; }
+      v.customTask = 'forest'; v.taskSpot = null;
+      v.target = null; v.waitTimer = 0; v.moveTimer = 0;
+      v.behaviorState = 'idle';
+      toast(`🪓 ${v.name} отправлен в лес (2 мин)`, '');
+    } else if (act === 'send-fish') {
+      if (!state.hasFishingRod) { toast('Нужна удочка с ведром', 'err'); return; }
+      if (v.type !== 'man') { toast('На рыбалку ходят только мужчины', 'err'); return; }
+      v.customTask = 'fish'; v.taskSpot = null;
+      v.target = null; v.waitTimer = 0; v.moveTimer = 0;
+      v.behaviorState = 'idle';
+      toast(`🎣 ${v.name} отправлен на рыбалку (2 мин)`, '');
+    } else if (act === 'cancel-task') {
+      v.customTask = null; v.taskSpot = null;
+      v.target = null; v.waitTimer = 0; v.moveTimer = 0;
+      equipTool(v, null);
+      v.behaviorState = 'idle';
+      toast(`${v.name} вернулся(ась) к обычной жизни`, '');
+    } else if (act === 'delete') { confirmDeleteVillager(v); }
+  }
+}
 function openBuildingContextMenu(screenX, screenY, building) {
   const def = building.def;
   const lvl = building.level || 1;
   const maxLvl = 3;
   const upgradeCost = {
-    money: Math.round((def.cost.money || 0) * 0.8 * lvl),
-    wood: Math.round((def.cost.wood || 0) * 0.6 * lvl)
+    money: Math.round((def.cost.money || 0) * 0.9 * lvl),
+    wood: Math.round((def.cost.wood || 0) * 0.7 * lvl)
   };
   const canUpgrade = lvl < maxLvl && canAfford(upgradeCost) && !def.isFence;
-
-  el.ctxMenu.innerHTML = `
-    <div class="ctx-title">
-      <span>${def.icon} ${building.name}</span>
-      <span class="lvl">${def.isFence ? 'окружение' : 'Ур. ' + lvl + '/' + maxLvl}</span>
-    </div>
-    <button class="ctx-btn" data-act="rename"><span>✏️</span> Переименовать</button>
-    <button class="ctx-btn" data-act="move"><span>↔️</span> Переместить</button>
-    <button class="ctx-btn" data-act="rotate"><span>🔄</span> Повернуть 45°</button>
-    ${def.isFence ? '' : `
-      <button class="ctx-btn" data-act="upgrade" ${lvl >= maxLvl ? 'disabled' : (canUpgrade ? '' : 'disabled')}>
-        <span>⬆️</span> Улучшить
-        <span class="sub">${lvl >= maxLvl ? 'макс.' : costString(upgradeCost)}</span>
-      </button>
-    `}
-    <button class="ctx-btn danger" data-act="delete">
-      <span>🗑️</span> Удалить
-      <span class="sub">+50% возврат</span>
-    </button>
-  `;
-  positionCtxMenu(screenX, screenY);
-
-  el.ctxMenu.querySelectorAll('.ctx-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const act = btn.dataset.act;
-      closeContextMenu();
-      if (act === 'rename') {
-        showNamePrompt(building.name, 'Имя здания', (newName) => {
-          const old = building.name;
-          building.name = newName;
-          toast(`✏️ "${old}" → "${newName}"`, 'ok');
-        }, building);
-      }
-      else if (act === 'move') { showMoveGhost(building); updateTopButtons(); toast('Кликните по земле · Q/E — поворот', ''); }
-      else if (act === 'rotate') rotateBuilding(building, Math.PI / 4);
-      else if (act === 'upgrade') confirmUpgrade(building);
-      else if (act === 'delete') confirmDelete(building);
+  const btns = [];
+  btns.push({ act: 'rename', label: '✏️ Переименовать' });
+  btns.push({ act: 'move', label: '↔️ Переместить' });
+  btns.push({ act: 'rotate', label: '🔄 Повернуть 45°' });
+  if (!def.isFence) {
+    btns.push({
+      act: 'upgrade',
+      label: `⬆️ Улучшить${lvl >= maxLvl ? ' (макс.)' : ''}`,
+      sub: lvl >= maxLvl ? '' : costString(upgradeCost),
+      disabled: lvl >= maxLvl || !canUpgrade
     });
+  }
+  if (building.type === 'coop') {
+    btns.push({ act: 'buy-chicken', label: '🐔 Купить курицу', sub: '💰 30' });
+  }
+  btns.push({ act: 'delete', label: '🗑️ Удалить', sub: '+50% возврат', danger: true });
+  let html = `<div class="ctx-title">
+    <span>${def.icon} ${building.name}</span>
+    <span class="lvl">${def.isFence ? 'окружение' : 'Ур. ' + lvl + '/' + maxLvl}</span>
+  </div>`;
+  for (const b of btns) {
+    html += `<button class="ctx-btn ${b.danger ? 'danger' : ''}" type="button" data-act="${b.act}" ${b.disabled ? 'disabled' : ''}>
+      <span>${b.label.split(' ')[0]}</span> ${b.label.split(' ').slice(1).join(' ')}
+      ${b.sub ? `<span class="sub">${b.sub}</span>` : ''}
+    </button>`;
+  }
+  el.ctxMenu.innerHTML = html;
+  positionCtxMenu(screenX, screenY);
+  const target = { kind: 'building', ref: building };
+  el.ctxMenu.querySelectorAll('.ctx-btn').forEach(btn => {
+    if (btn.disabled) return;
+    const act = btn.dataset.act;
+    btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); handleCtxAction(act, target); };
+    btn.addEventListener('pointerdown', e => e.stopPropagation());
   });
 }
-
 function openVillagerContextMenu(screenX, screenY, v) {
   const homeLabel = v.home ? `🏠 ${v.home.name}` : '— нет';
   const workLabel = v.workplace ? `💼 ${v.workplace.name}` : '— без работы';
   const hunger = Math.max(0, Math.round(v.hunger));
-
-  let html = `
-    <div class="ctx-title">
-      <span>${v.def.icon} ${v.name}</span>
-      <span class="lvl">${stateLabel(v.behaviorState)}</span>
-    </div>
-    <div style="padding:6px 12px;font-size:11.5px;color:#8fa5b8">
-      Сытость: ${hunger}%
-      <div style="height:5px;background:rgba(255,255,255,.1);border-radius:3px;margin-top:4px;overflow:hidden">
-        <div style="width:${hunger}%;height:100%;background:${hunger>60?'#5ee08a':hunger>30?'#ffd66b':'#ff7a7a'};border-radius:3px"></div>
-      </div>
-    </div>
-    <button class="ctx-btn" data-act="rename"><span>✏️</span> Переименовать</button>
-    <button class="ctx-btn" data-act="assign-home">
-      <span>🏠</span> ${v.home ? 'Сменить дом' : 'Прописать в дом'}
-      <span class="sub">${homeLabel}</span>
-    </button>
-  `;
-  if (v.workplace) {
-    html += `<button class="ctx-btn" data-act="assign-work">
-      <span>💼</span> Сменить работу
-      <span class="sub">${workLabel}</span>
-    </button>
-    <button class="ctx-btn" data-act="fire"><span>🚫</span> Уволить</button>`;
+  const btns = [];
+  btns.push({ act: 'rename', label: '✏️ Переименовать' });
+  btns.push({ act: 'assign-home', label: `${v.home ? '🏠 Сменить дом' : '🏠 Прописать в дом'}`, sub: homeLabel });
+  if (v.customTask) {
+    btns.push({ act: 'cancel-task', label: '⏹️ Отменить задание' });
   } else {
-    html += `<button class="ctx-btn" data-act="assign-work"><span>💼</span> Назначить на работу</button>`;
+    if (v.workplace) {
+      btns.push({ act: 'assign-work', label: '💼 Сменить работу', sub: workLabel });
+      btns.push({ act: 'fire', label: '🚫 Уволить' });
+    } else {
+      btns.push({ act: 'assign-work', label: '💼 Назначить на работу' });
+    }
+    if (v.type === 'man') {
+      const sub = state.hasAxe ? '+0.5 🪵/с · 2 мин' : 'нужен топор';
+      btns.push({ act: 'send-forest', label: '🪓 Отправить в лес', sub, disabled: !state.hasAxe });
+    }
+    if (v.type === 'man') {
+      const sub = state.hasFishingRod ? '+0.4 🌾/с · 2 мин' : 'нужна удочка';
+      btns.push({ act: 'send-fish', label: '🎣 Отправить на рыбалку', sub, disabled: !state.hasFishingRod });
+    }
   }
-  html += `
-    <button class="ctx-btn" data-act="send-home" ${v.home ? '' : 'disabled'}>
-      <span>🏃</span> Отправить домой
-    </button>
-    <button class="ctx-btn" data-act="send-work" ${v.workplace ? '' : 'disabled'}>
-      <span>🏃</span> Отправить на работу
-    </button>
-    <button class="ctx-btn" data-act="feed" ${state.food >= 15 ? '' : 'disabled'}>
-      <span>🍞</span> Покормить
-      <span class="sub">15 еды</span>
-    </button>
-    <button class="ctx-btn danger" data-act="delete">
-      <span>🗑️</span> Удалить жителя
-    </button>
-  `;
-
+  btns.push({ act: 'send-home', label: '🏃 Отправить домой', disabled: !v.home });
+  btns.push({ act: 'send-work', label: '🏃 Отправить на работу', disabled: !v.workplace || !!v.customTask });
+  btns.push({ act: 'feed', label: '🍞 Покормить', sub: '15 еды', disabled: state.food < 15 });
+  btns.push({ act: 'delete', label: '🗑️ Удалить жителя', danger: true });
+  let html = `<div class="ctx-title">
+    <span>${v.def.icon} ${v.name}</span>
+    <span class="lvl">${stateLabel(v.behaviorState)}</span>
+  </div>
+  <div style="padding:6px 12px;font-size:11.5px;color:#8fa5b8">
+    Сытость: ${hunger}%
+    <div style="height:5px;background:rgba(255,255,255,.1);border-radius:3px;margin-top:4px;overflow:hidden">
+      <div style="width:${hunger}%;height:100%;background:${hunger>60?'#5ee08a':hunger>30?'#ffd66b':'#ff7a7a'};border-radius:3px"></div>
+    </div>
+  </div>`;
+  for (const b of btns) {
+    html += `<button class="ctx-btn ${b.danger ? 'danger' : ''}" type="button" data-act="${b.act}" ${b.disabled ? 'disabled' : ''}>
+      <span>${b.label.split(' ')[0]}</span> ${b.label.split(' ').slice(1).join(' ')}
+      ${b.sub ? `<span class="sub">${b.sub}</span>` : ''}
+    </button>`;
+  }
   el.ctxMenu.innerHTML = html;
   positionCtxMenu(screenX, screenY);
-
+  const target = { kind: 'villager', ref: v };
   el.ctxMenu.querySelectorAll('.ctx-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const act = btn.dataset.act;
-      closeContextMenu();
-      if (act === 'rename') {
-        showNamePrompt(v.name, 'Имя жителя', (newName) => {
-          const old = v.name;
-          v.name = newName;
-          toast(`✏️ "${old}" → "${newName}"`, 'ok');
-        }, v);
-      }
-      else if (act === 'assign-home') showHomePicker(v);
-      else if (act === 'assign-work') showWorkPicker(v);
-      else if (act === 'fire') fireVillager(v);
-      else if (act === 'send-home') sendVillagerHome(v);
-      else if (act === 'send-work') sendVillagerWork(v);
-      else if (act === 'feed') { if (state.food >= 15) { state.food -= 15; v.hunger = 100; toast(`${v.name} поел(а)`, 'ok'); } }
-      else if (act === 'delete') confirmDeleteVillager(v);
-    });
+    if (btn.disabled) return;
+    const act = btn.dataset.act;
+    btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); handleCtxAction(act, target); };
+    btn.addEventListener('pointerdown', e => e.stopPropagation());
   });
 }
-
 function stateLabel(s) {
-  return {
-    idle: '⏳ отдыхает',
-    toWork: '➡️ идёт на работу',
-    toHome: '⬅️ идёт домой',
-    toEat: '🍞 идёт есть',
-    working: '🛠️ работает',
-    resting: '😴 отдыхает',
-    wandering: '🚶 гуляет'
-  }[s] || '👤';
+  return { idle:'⏳ отдыхает', toWork:'➡️ идёт на работу', toHome:'⬅️ идёт домой',
+    toEat:'🍞 идёт есть', working:'🛠️ работает', resting:'😴 отдыхает', wandering:'🚶 гуляет',
+    toForest:'🪓 идёт в лес', chopping:'🪓 рубит лес',
+    toFish:'🎣 идёт на рыбалку', fishing:'🎣 рыбачит',
+    hunting:'🎯 охотится на медведя' }[s] || '👤';
 }
-
-function positionCtxMenu(screenX, screenY) {
-  el.ctxMenu.classList.add('open');
-  const rect = el.ctxMenu.getBoundingClientRect();
-  const x = Math.min(screenX, window.innerWidth - rect.width - 8);
-  const y = Math.min(screenY, window.innerHeight - rect.height - 8);
-  el.ctxMenu.style.left = x + 'px';
-  el.ctxMenu.style.top = y + 'px';
-}
-function closeContextMenu() { el.ctxMenu.classList.remove('open'); }
-
-function fireVillager(v) {
-  if (!v.workplace) return;
-  const name = v.workplace.name;
-  v.workplace = null;
-  v.target = null; v.waitTimer = 0; v.behaviorState = 'idle';
-  toast(`${v.name} уволен(а) с ${name}`, '');
-}
-
 function sendVillagerHome(v) {
   if (!v.home) { toast('Нет дома', 'err'); return; }
+  v.customTask = null; v.taskSpot = null;
+  equipTool(v, null);
   v.homeAngle = Math.random() * Math.PI * 2;
   v.target = getSpotOutside(v.home, v.homeAngle);
-  v.behaviorState = 'toHome';
-  v.waitTimer = 0; v.moveTimer = 0;
+  v.behaviorState = 'toHome'; v.waitTimer = 0; v.moveTimer = 0;
 }
 function sendVillagerWork(v) {
   if (!v.workplace) { toast('Нет работы', 'err'); return; }
+  v.customTask = null; v.taskSpot = null;
+  equipTool(v, null);
   v.workAngle = Math.random() * Math.PI * 2;
   v.target = getSpotOutside(v.workplace, v.workAngle);
-  v.behaviorState = 'toWork';
-  v.waitTimer = 0; v.moveTimer = 0;
+  v.behaviorState = 'toWork'; v.waitTimer = 0; v.moveTimer = 0;
 }
-
 function confirmDeleteVillager(v) {
   showConfirm({
     title: 'Удалить жителя?',
     body: `${v.def.icon} <b>${v.name}</b> покинет деревню.`,
-    confirmText: 'Удалить',
-    danger: true,
+    confirmText: 'Удалить', danger: true,
     onConfirm: () => {
       scene.remove(v.group);
       v.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
@@ -1735,23 +2714,18 @@ function confirmDeleteVillager(v) {
     }
   });
 }
-
 function showHomePicker(v) {
-  const houses = state.buildings.filter(b => (b.def.capacity || 0) > 0);
+  const houses = state.buildings.filter(b => (b.def.capacities || b.def.capacity));
   if (houses.length === 0) { toast('Нет домов', 'err'); return; }
-
   let html = `<h3>🏠 Выберите дом</h3><div class="picker-list">`;
   houses.forEach(b => {
-    const occ = getHouseOccupants(b);
-    const cap = houseCapacity(b);
+    const occ = getHouseOccupants(b), cap = houseCapacity(b);
     const full = occ >= cap && b !== v.home;
-    html += `<button class="picker-item" data-id="${b.id}" ${full ? 'disabled' : ''}>
-      <span>🏠 ${b.name}</span>
-      <span class="sub">${occ}/${cap}${b === v.home ? ' · текущий' : ''}</span>
+    html += `<button class="picker-item" type="button" data-id="${b.id}" ${full ? 'disabled' : ''}>
+      <span>🏠 ${b.name}</span><span class="sub">${occ}/${cap}${b === v.home ? ' · текущий' : ''}</span>
     </button>`;
   });
-  html += `</div><div class="modal-actions"><button class="mbtn cancel">Отмена</button></div>`;
-
+  html += `</div><div class="modal-actions"><button class="mbtn cancel" type="button">Отмена</button></div>`;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `<div class="modal">${html}</div>`;
@@ -1759,37 +2733,34 @@ function showHomePicker(v) {
   overlay.querySelector('.cancel').onclick = () => overlay.remove();
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
   overlay.querySelectorAll('.picker-item').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.onclick = () => {
       if (btn.disabled) return;
-      const id = parseInt(btn.dataset.id, 10);
-      const house = state.buildings.find(b => b.id === id);
+      const house = state.buildings.find(b => b.id === parseInt(btn.dataset.id, 10));
       if (house) {
-        v.home = house;
-        v.target = null; v.waitTimer = 0; v.moveTimer = 0;
+        v.home = house; v.target = null; v.waitTimer = 0; v.moveTimer = 0;
         if (v.behaviorState !== 'working') v.behaviorState = 'idle';
         toast(`${v.name} прописан(а) в ${house.name}`, 'ok');
       }
       overlay.remove();
-    });
+    };
   });
 }
-
 function showWorkPicker(v) {
-  const workplaces = state.buildings.filter(b => (b.def.jobs || 0) > 0);
-  if (workplaces.length === 0) { toast('Нет рабочих мест', 'err'); return; }
-
+  const wps = state.buildings.filter(b => {
+    if ((b.def.jobs || 0) === 0) return false;
+    if (!canWorkAt(v, b)) return false;
+    return true;
+  });
+  if (wps.length === 0) { toast('Нет рабочих мест', 'err'); return; }
   let html = `<h3>💼 Выберите работу</h3><div class="picker-list">`;
-  workplaces.forEach(b => {
-    const w = getWorkersAt(b);
-    const slots = workplaceSlots(b);
+  wps.forEach(b => {
+    const w = getWorkersAt(b), slots = workplaceSlots(b);
     const full = w >= slots && b !== v.workplace;
-    html += `<button class="picker-item" data-id="${b.id}" ${full ? 'disabled' : ''}>
-      <span>💼 ${b.name}</span>
-      <span class="sub">${w}/${slots}${b === v.workplace ? ' · текущая' : ''}</span>
+    html += `<button class="picker-item" type="button" data-id="${b.id}" ${full ? 'disabled' : ''}>
+      <span>${b.def.icon} ${b.name}</span><span class="sub">${w}/${slots}${b === v.workplace ? ' · текущая' : ''}</span>
     </button>`;
   });
-  html += `</div><div class="modal-actions"><button class="mbtn cancel">Отмена</button></div>`;
-
+  html += `</div><div class="modal-actions"><button class="mbtn cancel" type="button">Отмена</button></div>`;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `<div class="modal">${html}</div>`;
@@ -1797,52 +2768,54 @@ function showWorkPicker(v) {
   overlay.querySelector('.cancel').onclick = () => overlay.remove();
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
   overlay.querySelectorAll('.picker-item').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.onclick = () => {
       if (btn.disabled) return;
-      const id = parseInt(btn.dataset.id, 10);
-      const wp = state.buildings.find(b => b.id === id);
+      const wp = state.buildings.find(b => b.id === parseInt(btn.dataset.id, 10));
       if (wp) {
-        v.workplace = wp;
-        v.target = null; v.waitTimer = 0; v.moveTimer = 0;
+        v.workplace = wp; v.target = null; v.waitTimer = 0; v.moveTimer = 0;
         v.behaviorState = 'idle';
         toast(`${v.name} работает на ${wp.name}`, 'ok');
       }
       overlay.remove();
-    });
+    };
   });
 }
-
 function confirmUpgrade(b) {
-  const def = b.def;
-  const lvl = b.level || 1;
+  const def = b.def, lvl = b.level || 1;
   if (lvl >= 3) { toast('Максимальный уровень', 'err'); return; }
   const cost = {
-    money: Math.round((def.cost.money || 0) * 0.8 * lvl),
-    wood: Math.round((def.cost.wood || 0) * 0.6 * lvl)
+    money: Math.round((def.cost.money || 0) * 0.9 * lvl),
+    wood: Math.round((def.cost.wood || 0) * 0.7 * lvl)
   };
+  let capText = '';
+  if (def.capacities) {
+    capText = `<span class="desc">Жителей: ${def.capacities[lvl-1]} → ${def.capacities[lvl]}</span>`;
+  }
   showConfirm({
     title: `Улучшить ${b.name}?`,
     body: `Уровень ${lvl} → ${lvl + 1}<br>
       <span class="cost">Стоимость: ${costString(cost)}</span>
-      <span class="desc">Производство ×${lvl + 1}</span>`,
+      <span class="desc">Внешний вид и характеристики улучшатся</span>
+      ${capText}`,
     confirmText: 'Улучшить',
     onConfirm: () => {
       if (!canAfford(cost)) { toast('Недостаточно ресурсов', 'err'); return; }
       state.money -= cost.money;
       state.wood -= cost.wood;
       b.level = lvl + 1;
-      b.group.scale.setScalar(1 + (b.level - 1) * 0.1);
+      const oldGroup = b.group;
+      const newGroup = createBuildingMesh(b.type, b.level);
+      newGroup.position.copy(oldGroup.position);
+      newGroup.rotation.copy(oldGroup.rotation);
+      scene.remove(oldGroup);
+      oldGroup.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+      scene.add(newGroup);
+      newGroup.userData.buildingRef = b;
+      b.group = newGroup;
       toast(`⬆️ ${b.name} → уровень ${b.level}`, 'ok');
     }
   });
 }
-
-function rotateBuilding(b, delta) {
-  b.rotation = (b.rotation || 0) + delta;
-  b.group.rotation.y = b.rotation;
-  toast(`🔄 ${b.name} повёрнут`, '');
-}
-
 function confirmDelete(b) {
   const refundMoney = Math.floor((b.def.cost.money || 0) * 0.5);
   const refundWood = Math.floor((b.def.cost.wood || 0) * 0.5);
@@ -1850,13 +2823,22 @@ function confirmDelete(b) {
     title: `Удалить ${b.name}?`,
     body: `Объект будет снесён.<br>
       <span class="cost">Возврат: ${costString({ money: refundMoney, wood: refundWood })}</span>`,
-    confirmText: 'Удалить',
-    danger: true,
+    confirmText: 'Удалить', danger: true,
     onConfirm: () => {
       state.villagers.forEach(v => {
         if (v.home === b) { v.home = null; v.target = null; v.behaviorState = 'idle'; }
         if (v.workplace === b) { v.workplace = null; v.target = null; v.behaviorState = 'idle'; }
       });
+      if (b.type === 'coop') {
+        for (let i = state.chickens.length - 1; i >= 0; i--) {
+          if (state.chickens[i].coop === b) {
+            const ch = state.chickens[i];
+            scene.remove(ch.group);
+            ch.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+            state.chickens.splice(i, 1);
+          }
+        }
+      }
       state.money += refundMoney;
       state.wood += refundWood;
       scene.remove(b.group);
@@ -1869,94 +2851,31 @@ function confirmDelete(b) {
 }
 
 /* =========================================================
-   15. МЫШЬ
+   15. МЫШЬ / ТАЧ
    ========================================================= */
 let downInfo = null;
-let draggingVillager = null;
-const dragOffset = new THREE.Vector3();
-let dragMoved = false;
-
 function updatePtr(e) {
   ptr.x = (e.clientX / window.innerWidth) * 2 - 1;
   ptr.y = -(e.clientY / window.innerHeight) * 2 + 1;
   ptrValid = true;
 }
-
 renderer.domElement.addEventListener('pointerdown', e => {
   updatePtr(e);
   downInfo = { x: e.clientX, y: e.clientY, button: e.button };
-  dragMoved = false;
-
-  if (e.button === 0 && !ghostMode && !demolishMode) {
-    raycaster.setFromCamera(ptr, camera);
-    const vHits = raycaster.intersectObjects(state.villagers.map(v => v.group), true);
-    if (vHits.length) {
-      const v = findVillager(vHits[0].object);
-      if (v) {
-        const gHits = raycaster.intersectObject(ground);
-        if (gHits.length) {
-          draggingVillager = v;
-          dragOffset.set(
-            v.group.position.x - gHits[0].point.x, 0,
-            v.group.position.z - gHits[0].point.z
-          );
-          v.target = null;
-          v.waitTimer = 0;
-          v.group.position.y = 0.4;
-        }
-      }
-    }
-  }
 });
-
-window.addEventListener('pointermove', e => {
-  updatePtr(e);
-  if (draggingVillager) {
-    raycaster.setFromCamera(ptr, camera);
-    const gHits = raycaster.intersectObject(ground);
-    if (gHits.length) {
-      const p = gHits[0].point;
-      let nx = p.x + dragOffset.x;
-      let nz = p.z + dragOffset.z;
-      nx = Math.max(-BOUND + 1, Math.min(BOUND - 1, nx));
-      nz = Math.max(-BOUND + 1, Math.min(BOUND - 1, nz));
-      draggingVillager.group.position.x = nx;
-      draggingVillager.group.position.z = nz;
-      dragMoved = true;
-    }
-  }
-});
-
+window.addEventListener('pointermove', updatePtr);
 window.addEventListener('pointerup', e => {
-  if (draggingVillager) {
-    const v = draggingVillager;
-    v.group.position.y = 0;
-    v.x = v.group.position.x;
-    v.z = v.group.position.z;
-    v.waitTimer = 0.5;
-    v.behaviorState = 'idle';
-    draggingVillager = null;
-    if (dragMoved) {
-      toast(`${v.name} перемещён(а)`, '');
-      downInfo = null;
-      return;
-    }
-  }
-
   if (!downInfo) return;
   const moved = Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y);
   const wasLeft = downInfo.button === 0 && e.button === 0;
   const wasRight = downInfo.button === 2 && e.button === 2;
   downInfo = null;
   if (moved > 6) return;
-
   if (wasLeft) handleLeftClick(e);
   else if (wasRight) handleRightClick(e);
 });
-
 function handleLeftClick(e) {
   closePlusMenu();
-
   if (demolishMode) {
     raycaster.setFromCamera(ptr, camera);
     const hits = raycaster.intersectObjects(state.buildings.map(b => b.group), true);
@@ -1966,7 +2885,6 @@ function handleLeftClick(e) {
     }
     return;
   }
-
   if (ghostMode === 'build') {
     raycaster.setFromCamera(ptr, camera);
     const hits = raycaster.intersectObject(ground);
@@ -1976,15 +2894,21 @@ function handleLeftClick(e) {
     const z = Math.round(p.z * 2) / 2;
     const def = BUILDINGS[ghostType];
     if (!canAfford(def.cost)) { toast('Недостаточно ресурсов', 'err'); cancelPlacement(); return; }
-    if (!isValidPlacement(ghostType, x, z)) { toast('Здесь нельзя строить', 'err'); return; }
+    if (!isValidPlacement(ghostType, x, z)) {
+      if (def.onWater) toast('Пирс ставится на реке или у берега', 'err');
+      else if (def.needsRiver) toast('Только у южного берега реки', 'err');
+      else if (isInRiver(x, z)) toast('Нельзя строить в воде', 'err');
+      else toast('Здесь нельзя строить', 'err');
+      return;
+    }
     state.money -= def.cost.money || 0;
     state.wood -= def.cost.wood || 0;
     const b = addBuilding(ghostType, x, z, 1, ghostRotation);
     toast(`${def.icon} ${b.name} построен`, 'ok');
-    cancelPlacement();
+    if (!(def.isFence && canAfford(def.cost))) cancelPlacement();
+    saveGame();
     return;
   }
-
   if (ghostMode === 'move' && ghostBuilding) {
     raycaster.setFromCamera(ptr, camera);
     const hits = raycaster.intersectObject(ground);
@@ -1995,32 +2919,32 @@ function handleLeftClick(e) {
     if (!isValidPlacement(ghostBuilding.type, x, z, ghostBuilding)) {
       toast('Здесь нельзя разместить', 'err'); return;
     }
-    ghostBuilding.x = x;
-    ghostBuilding.z = z;
+    ghostBuilding.x = x; ghostBuilding.z = z;
     ghostBuilding.rotation = ghostRotation;
     ghostBuilding.group.position.set(x, 0, z);
     ghostBuilding.group.rotation.y = ghostRotation;
     ghostBuilding.group.visible = true;
     toast('↔️ Перемещено', 'ok');
     cancelPlacement();
+    saveGame();
     return;
   }
 }
-
 function handleRightClick(e) {
   e.preventDefault();
   closePlusMenu();
-
   if (ghostMode || demolishMode) { cancelPlacement(); return; }
-
   raycaster.setFromCamera(ptr, camera);
-
   const vHits = raycaster.intersectObjects(state.villagers.map(v => v.group), true);
   if (vHits.length) {
     const v = findVillager(vHits[0].object);
     if (v) { openVillagerContextMenu(e.clientX, e.clientY, v); return; }
   }
-
+  const cHits = raycaster.intersectObjects(state.chickens.map(c => c.group), true);
+  if (cHits.length) {
+    const ch = findChicken(cHits[0].object);
+    if (ch) { openBuildingContextMenu(e.clientX, e.clientY, ch.coop); return; }
+  }
   const hits = raycaster.intersectObjects(state.buildings.map(b => b.group), true);
   if (hits.length) {
     const b = findBuilding(hits[0].object);
@@ -2028,16 +2952,12 @@ function handleRightClick(e) {
   }
   closeContextMenu();
 }
-
 renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
-
 window.addEventListener('pointerdown', e => {
   if (el.ctxMenu.classList.contains('open') && !el.ctxMenu.contains(e.target)) closeContextMenu();
   if (el.plusMenu.classList.contains('open') &&
       !el.plusMenu.contains(e.target) &&
-      !document.getElementById('plus-btn').contains(e.target)) {
-    closePlusMenu();
-  }
+      !document.getElementById('plus-btn').contains(e.target)) closePlusMenu();
 }, true);
 
 /* =========================================================
@@ -2046,20 +2966,16 @@ window.addEventListener('pointerdown', e => {
 function economyTick(dt) {
   const counts = {};
   for (const b of state.buildings) counts[b.type] = (counts[b.type] || 0) + 1;
-
-  state.capFood = 200 + 200 * (counts.warehouse || 0);
-  state.capWood = 100 + 150 * (counts.warehouse || 0);
-
-  const housing = state.buildings.reduce((s, b) => s + (b.def.capacity || 0) * (b.level || 1), 0);
+  state.capFood = 200 + 150 * (counts.warehouse || 0);
+  state.capWood = 100 + 120 * (counts.warehouse || 0);
+  const housing = state.buildings.reduce((s, b) => s + houseCapacity(b), 0);
   state.housing = housing;
-
   let jobsTotal = 0;
   for (const b of state.buildings) jobsTotal += (b.def.jobs || 0) * (b.level || 1);
   let jobsFilled = 0;
   for (const v of state.villagers) if (v.workplace) jobsFilled++;
   state.jobsTotal = jobsTotal;
   state.jobsFilled = Math.min(jobsFilled, jobsTotal);
-
   const now = performance.now() / 1000;
   let foodProd = 0, woodProd = 0;
   for (const b of state.buildings) {
@@ -2072,44 +2988,53 @@ function economyTick(dt) {
     if (b.def.food) foodProd += b.def.food * eff * lvl;
     if (b.def.wood) woodProd += b.def.wood * eff * lvl;
   }
-
-  const foodUse = state.villagers.length * 0.06;
+  foodProd += state.chickens.length * 0.06;
+  const manualFishers = state.villagers.filter(v => v.behaviorState === 'fishing').length;
+  if (state.hasFishingRod) foodProd += manualFishers * 0.4;
+  if (state.hasFishingRod) {
+    const pierCount = state.buildings.filter(b => b.type === 'pier').length;
+    foodProd += pierCount * 0.7;
+  }
+  const choppers = state.villagers.filter(v => v.behaviorState === 'chopping').length;
+  woodProd += choppers * 0.5;
+  const foodUse = state.villagers.length * 0.09;
   state.food += (foodProd - foodUse) * dt;
   if (state.food < 0) state.food = 0;
   if (state.food > state.capFood) state.food = state.capFood;
-
   state.wood += woodProd * dt;
   if (state.wood > state.capWood) state.wood = state.capWood;
-
   state.foodRate = foodProd - foodUse;
   state.woodRate = woodProd;
-
   let income = 0;
   if (state.food > 0 && state.villagers.length > 0) {
-    const tax = state.villagers.length * 0.8;
-    state.money += tax * dt;
-    income += tax;
+    const tax = state.villagers.length * 1.2;
+    state.money += tax * dt; income += tax;
   }
-
+  const marketCount = state.buildings.filter(b => b.type === 'market').length;
+  if (marketCount > 0) {
+    const bonus = marketCount * 2.5;
+    state.money += bonus * dt; income += bonus;
+  }
   const marketWorkers = state.villagers.filter(v => v.workplace && v.workplace.type === 'market').length;
   if (marketWorkers > 0) {
-    const foodSurplus = Math.max(0, state.food - 100);
-    const woodSurplus = Math.max(0, state.wood - 60);
+    const foodSurplus = Math.max(0, state.food - 80);
+    const woodSurplus = Math.max(0, state.wood - 50);
     const sellF = Math.min(foodSurplus, marketWorkers * 3.0 * dt);
     const sellW = Math.min(woodSurplus, marketWorkers * 0.8 * dt);
-    state.food -= sellF;
-    state.wood -= sellW;
+    state.food -= sellF; state.wood -= sellW;
     const gained = sellF * 4 + sellW * 10;
-    state.money += gained;
-    income += gained / Math.max(dt, 1e-6);
+    state.money += gained; income += gained / Math.max(dt, 1e-6);
   }
-
   state.income += (income - state.income) * Math.min(1, dt * 3);
-
   state.nextAnimalSpawn -= dt;
   if (state.nextAnimalSpawn <= 0) {
     const spawned = spawnAnimal();
-    state.nextAnimalSpawn = spawned ? (180 + Math.random() * 300) : 60;
+    state.nextAnimalSpawn = spawned ? (40 + Math.random() * 160) : 30;
+  }
+  state.nextBearSpawn -= dt;
+  if (state.nextBearSpawn <= 0) {
+    spawnAnimal('bear');
+    state.nextBearSpawn = 300 + Math.random() * 300;
   }
 }
 
@@ -2121,24 +3046,34 @@ function updateUI(dt) {
   uiAcc += dt;
   if (uiAcc < 0.08) return;
   uiAcc = 0;
-
-  el.money.textContent = Math.floor(state.money).toLocaleString('ru-RU');
+  const moneyStr = Math.floor(state.money).toLocaleString('ru-RU');
+  el.money.textContent = moneyStr;
   el.food.textContent = `${Math.floor(state.food)}/${state.capFood}`;
   el.wood.textContent = `${Math.floor(state.wood)}/${state.capWood}`;
   el.pop.textContent = `${state.villagers.length}/${state.housing}`;
+  el.chickens.textContent = state.chickens.length;
   el.jobs.textContent = `${state.jobsFilled}/${state.jobsTotal}`;
-  el.sVillagers.textContent = state.villagers.length;
-
   el.sFood.textContent = signed(state.foodRate) + '/с';
   el.sFood.className = state.foodRate >= 0 ? 'pos' : 'neg';
   el.sWood.textContent = signed(state.woodRate) + '/с';
   el.sWood.className = state.woodRate >= 0 ? 'pos' : 'neg';
   el.sIncome.textContent = signed(state.income) + '/с';
   el.sIncome.className = state.income >= 0 ? 'pos' : 'neg';
-  el.sCount.textContent = state.buildings.length;
+
+  const bCount = state.buildings.filter(b => !b.def.isFence).length;
+  const eCount = state.buildings.filter(b => b.def.isFence).length;
+
+  // Компактные значения
+  el.cMoney.textContent = moneyStr;
+  el.cFood.textContent = Math.floor(state.food);
+  el.cWood.textContent = Math.floor(state.wood);
+  el.cVillagers.textContent = state.villagers.length;
+  el.cBuildings.textContent = bCount;
+  el.cEnv.textContent = eCount;
 
   document.getElementById('cnt-villagers').textContent = state.villagers.length;
-  document.getElementById('cnt-buildings').textContent = state.buildings.length;
+  document.getElementById('cnt-buildings').textContent = bCount;
+  document.getElementById('cnt-environment').textContent = eCount;
 }
 
 /* =========================================================
@@ -2150,33 +3085,36 @@ window.addEventListener('keydown', e => {
   if (e.code === 'Escape') { cancelPlacement(); closePlusMenu(); closeContextMenu(); }
   if (e.code === 'KeyQ' && ghost) { ghostRotation += Math.PI / 4; ghost.rotation.y = ghostRotation; }
   if (e.code === 'KeyE' && ghost) { ghostRotation -= Math.PI / 4; ghost.rotation.y = ghostRotation; }
+  if (['ShiftLeft','ShiftRight','ControlLeft','ControlRight'].includes(e.code)) e.preventDefault();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
-const _fwd = new THREE.Vector3();
-const _right = new THREE.Vector3();
-const _move = new THREE.Vector3();
+const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _move = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
-
 function keyboardPan(dt) {
   camera.getWorldDirection(_fwd);
   _fwd.y = 0;
   if (_fwd.lengthSq() < 1e-6) return;
   _fwd.normalize();
   _right.crossVectors(_fwd, UP).normalize();
-
   _move.set(0, 0, 0);
   if (keys.KeyW || keys.ArrowUp) _move.add(_fwd);
   if (keys.KeyS || keys.ArrowDown) _move.sub(_fwd);
   if (keys.KeyD || keys.ArrowRight) _move.add(_right);
   if (keys.KeyA || keys.ArrowLeft) _move.sub(_right);
-  if (_move.lengthSq() === 0) return;
-
-  const speed = (keys.ShiftLeft || keys.ShiftRight ? 46 : 22) * dt;
-  _move.normalize().multiplyScalar(speed);
-  camera.position.add(_move);
-  controls.target.add(_move);
+  const speed = 22 * dt;
+  if (_move.lengthSq() > 0) {
+    _move.normalize().multiplyScalar(speed);
+    camera.position.add(_move); controls.target.add(_move);
+  }
+  let dy = 0;
+  if (keys.ShiftLeft || keys.ShiftRight) dy += 15 * dt;
+  if (keys.ControlLeft || keys.ControlRight) dy -= 15 * dt;
+  if (dy !== 0) {
+    camera.position.y = Math.max(2, Math.min(80, camera.position.y + dy));
+    controls.target.y = Math.max(0, Math.min(60, controls.target.y + dy));
+  }
 }
 
 /* =========================================================
@@ -2187,13 +3125,11 @@ function updateGhost() {
   raycaster.setFromCamera(ptr, camera);
   const hits = raycaster.intersectObject(ground);
   if (!hits.length) { ghost.visible = false; return; }
-
   const p = hits[0].point;
   const x = Math.round(p.x * 2) / 2;
   const z = Math.round(p.z * 2) / 2;
   ghost.position.set(x, 0, z);
   ghost.visible = true;
-
   let ok = true;
   if (ghostMode === 'build') ok = isValidPlacement(ghostType, x, z) && canAfford(BUILDINGS[ghostType].cost);
   else if (ghostMode === 'move') ok = isValidPlacement(ghostBuilding.type, x, z, ghostBuilding);
@@ -2201,22 +3137,32 @@ function updateGhost() {
 }
 
 /* =========================================================
-   20. ЗАПУСК
+   20. АНИМАЦИЯ РЕКИ
+   ========================================================= */
+let riverTime = 0;
+function animateRiver(dt) {
+  riverTime += dt;
+  if (riverMesh && riverMesh.material) {
+    riverMesh.material.opacity = 0.9 + Math.sin(riverTime * 1.5) * 0.05;
+  }
+}
+
+/* =========================================================
+   21. ЗАПУСК
    ========================================================= */
 buildPlusMenu();
-
-addBuilding('house', 0, 0, 1, 0);
-
-setTimeout(() => {
-  const v1 = spawnVillager('man', 4, 4);
-  autoAssign(v1);
-  const v2 = spawnVillager('woman', -4, 4);
-  autoAssign(v2);
-}, 200);
-
-setTimeout(() => toast('👋 Добро пожаловать в деревню!', 'ok'), 400);
-setTimeout(() => toast('Кнопка ➕ — магазин зданий и жителей', ''), 1900);
-setTimeout(() => toast('ПКМ по объекту или записи в списке — меню', ''), 3400);
+const loaded = loadGame();
+if (!loaded) {
+  addBuilding('house', 0, -10, 1, 0);
+  setTimeout(() => {
+    const v1 = spawnVillager('man', 4, -6); autoAssign(v1);
+    const v2 = spawnVillager('woman', -4, -6); autoAssign(v2);
+    saveGame();
+  }, 200);
+  setTimeout(() => toast('👋 Добро пожаловать в деревню!', 'ok'), 400);
+} else {
+  toast('💾 Прогресс загружен', 'ok');
+}
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -2229,15 +3175,16 @@ function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
-
   keyboardPan(dt);
   controls.update();
   economyTick(dt);
   updateVillagers(dt);
+  updateChickens(dt);
   updateAnimals(dt);
+  animateRiver(dt);
   updateGhost();
   updateUI(dt);
-
+  updateTimers();
   renderer.render(scene, camera);
 }
 requestAnimationFrame(loop);
